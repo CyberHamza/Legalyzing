@@ -54,7 +54,8 @@ import {
     Visibility,
     AccessTime,
     Mail,
-    Place
+    Place,
+    Person as PersonIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn, slideInFromBottom, slideInFromLeft, slideInFromRight, staggerContainer } from '../utils/animations';
@@ -230,28 +231,24 @@ const LandingPage = () => {
             name: 'Shafa-at Ali Sheikh',
             role: 'Chief Executive Officer',
             title: 'Project Lead & AI Architect',
-            image: '/artifacts/team_member_1_1764624925396.png',
             bio: 'Expert in AI/ML systems and legal tech innovation'
         },
         {
             name: 'Maaz Bin Ramzan',
             role: 'Chief Technology Officer',
             title: 'Backend Developer',
-            image: '/artifacts/team_member_2_1764624941257.png',
             bio: 'Specializes in FastAPI and cloud infrastructure'
         },
         {
             name: 'Nouman Ali',
             role: 'Chief Product Officer',
             title: 'Full Stack Developer',
-            image: '/artifacts/team_member_3_1764624955226.png',
             bio: 'Expert in React and system integration'
         },
         {
             name: 'Osama Imtiaz',
             role: 'Head of AI Research',
             title: 'AI/ML Engineer',
-            image: '/artifacts/team_member_4_1764624969690.png',
             bio: 'Focuses on LLM integration and RAG systems'
         }
     ];
@@ -261,7 +258,6 @@ const LandingPage = () => {
             name: 'Sarah Johnson',
             role: 'Legal Director',
             company: 'TechCorp Inc.',
-            image: '/artifacts/testimonial_person_1_1764624881507.png',
             rating: 5,
             text: 'Legalyzing has transformed our legal document workflow. The AI-powered generation is incredibly accurate, and the compliance checking saves us countless hours. The interface is intuitive and the results are consistently professional.'
         },
@@ -269,7 +265,6 @@ const LandingPage = () => {
             name: 'Michael Chen',
             role: 'Chief Legal Officer',
             company: 'Innovation Labs',
-            image: '/artifacts/testimonial_person_2_1764624895382.png',
             rating: 5,
             text: 'The RAG-powered Q&A feature is a game-changer. We can quickly extract information from complex legal documents with unprecedented accuracy. This has significantly improved our research efficiency.'
         },
@@ -277,7 +272,6 @@ const LandingPage = () => {
             name: 'Emily Rodriguez',
             role: 'Compliance Manager',
             company: 'FinanceHub',
-            image: '/artifacts/testimonial_person_3_1764624909929.png',
             rating: 5,
             text: 'Security and compliance are our top priorities, and Legalyzing delivers on both. The AWS S3 integration and AES-256 encryption give us complete peace of mind. Highly recommended for enterprise use!'
         }
@@ -560,23 +554,12 @@ const LandingPage = () => {
                                     }}>
                                         <Box sx={{ 
                                             height: 280, 
-                                            overflow: 'hidden',
-                                            position: 'relative',
-                                            '&::after': {
-                                                content: '""',
-                                                position: 'absolute',
-                                                bottom: 0,
-                                                left: 0,
-                                                right: 0,
-                                                height: '50%',
-                                                background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)'
-                                            }
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            bgcolor: mode === 'dark' ? 'rgba(15,23,42,0.9)' : 'rgba(148,163,184,0.2)'
                                         }}>
-                                            <img 
-                                                src={member.image} 
-                                                alt={member.name}
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                            />
+                                            <PersonIcon sx={{ fontSize: 96, color: 'primary.main' }} />
                                         </Box>
                                         <CardContent sx={{ textAlign: 'center', p: 3 }}>
                                             <Typography variant="h6" fontWeight={700} gutterBottom>{member.name}</Typography>
@@ -641,16 +624,15 @@ const LandingPage = () => {
                                                 width: { xs: 100, md: 120 }, 
                                                 height: { xs: 100, md: 120 }, 
                                                 borderRadius: '50%', 
-                                                overflow: 'hidden',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
                                                 border: '4px solid',
                                                 borderColor: 'primary.main',
-                                                flexShrink: 0
+                                                flexShrink: 0,
+                                                bgcolor: mode === 'dark' ? 'rgba(15,23,42,0.9)' : 'rgba(148,163,184,0.2)'
                                             }}>
-                                                <img 
-                                                    src={testimonials[currentTestimonialIndex].image} 
-                                                    alt={testimonials[currentTestimonialIndex].name}
-                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                />
+                                                <PersonIcon sx={{ fontSize: 64, color: 'primary.main' }} />
                                             </Box>
                                             <Box sx={{ flex: 1 }}>
                                                 <FormatQuote sx={{ fontSize: 40, color: 'primary.main', opacity: 0.3 }} />
@@ -847,28 +829,17 @@ const LandingPage = () => {
                         </Grid>
                         <Grid item xs={12} md={6}>
                             <Card className="glass" sx={{ p: 0, overflow: 'hidden', height: '100%' }}>
-                                <Box sx={{ 
-                                    height: '100%', 
-                                    minHeight: 400,
-                                    background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    position: 'relative'
-                                }}>
-                                    <Box sx={{ 
-                                        position: 'absolute',
-                                        width: '100%',
-                                        height: '100%',
-                                        backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'0.05\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-                                        opacity: 0.3
-                                    }} />
-                                    <Box sx={{ textAlign: 'center', color: 'white', position: 'relative', zIndex: 1, p: 4 }}>
-                                        <Place sx={{ fontSize: 80, mb: 2 }} />
-                                        <Typography variant="h4" fontWeight={700} gutterBottom>Visit Our Office</Typography>
-                                        <Typography variant="h6" sx={{ mb: 1 }}>Military College of Signals</Typography>
-                                        <Typography variant="body1">Rawalpindi, Pakistan</Typography>
-                                    </Box>
+                                <Box sx={{ height: '100%', minHeight: 400 }}>
+                                    <iframe
+                                        title="Military College of Signals Location"
+                                        width="100%"
+                                        height="100%"
+                                        style={{ border: 0 }}
+                                        loading="lazy"
+                                        allowFullScreen
+                                        referrerPolicy="no-referrer-when-downgrade"
+                                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3320.684223983068!2d73.05582051520023!3d33.64426054693209!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x38df944c4bbfdf21%3A0x5e5d7bf0291e1e7b!2sMilitary%20College%20of%20Signals%20(MCS)!5e0!3m2!1sen!2sPK!4v1733150000000!5m2!1sen!2sPK"
+                                    />
                                 </Box>
                             </Card>
                         </Grid>
