@@ -66,6 +66,24 @@ generatedDocumentSchema.methods.getSignedUrl = async function() {
     return signedUrl;
 };
 
+// Instance method to generate temporary view token for HTML viewing
+generatedDocumentSchema.methods.generateViewToken = function() {
+    const jwt = require('jsonwebtoken');
+    
+    // Create a token that expires in 1 hour
+    const token = jwt.sign(
+        {
+            documentId: this._id.toString(),
+            userId: this.userId.toString(),
+            type: 'view-token'
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '1h' }
+    );
+    
+    return token;
+};
+
 // Static method to delete document from S3
 generatedDocumentSchema.statics.deleteFromS3 = async function(s3Key) {
     const { DeleteObjectCommand } = require('@aws-sdk/client-s3');

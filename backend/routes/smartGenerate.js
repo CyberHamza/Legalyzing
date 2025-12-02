@@ -158,6 +158,10 @@ router.post('/generate', protect, async (req, res) => {
 
         await generatedDoc.save();
 
+        // Generate view token for secure access
+        const viewToken = generatedDoc.generateViewToken();
+        const viewUrl = `/api/generate/view/${viewToken}`;
+
         res.status(200).json({
             success: true,
             message: 'Document generated successfully',
@@ -166,7 +170,8 @@ router.post('/generate', protect, async (req, res) => {
                     id: generatedDoc._id,
                     fileName: fileName,
                     url: `/api/generate/documents/${generatedDoc._id}`,
-                    htmlUrl: `/api/generate/documents/${generatedDoc._id}/html`,
+                    htmlUrl: viewUrl,
+                    viewUrl: viewUrl,
                     createdAt: generatedDoc.createdAt
                 },
                 usedFields: mappedFields,

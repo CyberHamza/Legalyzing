@@ -112,10 +112,13 @@ router.get('/documents', protect, async (req, res) => {
             .sort({ createdAt: -1 })
             .select('-formData'); // Exclude form data from list
         
-        // Generate signed URLs for all documents
+        // Generate signed URLs and view URLs for all documents
         const documentsWithUrls = await Promise.all(
             documents.map(async (doc) => {
-                const signedUrl = await doc.getSignedUrl();
+                const signedUrl = doc.s3Key ? await doc.getSignedUrl() : null;
+                const viewToken = doc.generateViewToken();
+                const htmlUrl = doc.htmlContent ? `/api/generate/view/${viewToken}` : null;
+                
                 return {
                     id: doc._id,
                     fileName: doc.fileName,
@@ -123,7 +126,9 @@ router.get('/documents', protect, async (req, res) => {
                     fileSize: doc.fileSize,
                     createdAt: doc.createdAt,
                     status: doc.status,
-                    signedUrl
+                    signedUrl,
+                    htmlUrl,
+                    viewUrl: htmlUrl // For compatibility
                 };
             })
         );
@@ -232,8 +237,51 @@ router.delete('/documents/:id', protect, async (req, res) => {
     }
 });
 
+// @route   GET /api/generate/view/:token
+// @desc    View HTML document with temporary token (public)
+// @access  Public (with valid token)
+router.get('/view/:token', async (req, res) => {
+    try {
+        const jwt = require('jsonwebtoken');
+        
+        // Verify the token
+        const decoded = jwt.verify(req.params.token, process.env.JWT_SECRET);
+        
+        // Check if it's a view token
+        if (decoded.type !== 'view-token') {
+            return res.status(403).send('<html><body><h1>Invalid token type</h1></body></html>');
+        }
+        
+        // Find the document
+        const document = await GeneratedDocument.findById(decoded.documentId);
+        
+        if (!document) {
+            return res.status(404).send('<html><body><h1>Document not found</h1></body></html>');
+        }
+        
+        // Verify the document belongs to the user in the token
+        if (document.userId.toString() !== decoded.userId) {
+            return res.status(403).send('<html><body><h1>Unauthorized access</h1></body></html>');
+        }
+        
+        // Serve the HTML content
+        res.set('Content-Type', 'text/html');
+        res.send(document.htmlContent || '<html><body><h1>Document content not available</h1></body></html>');
+        
+    } catch (error) {
+        console.error('View HTML error:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).send('<html><body><h1>Invalid or expired token</h1></body></html>');
+        }
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).send('<html><body><h1>Token has expired. Please generate a new link.</h1></body></html>');
+        }
+        res.status(500).send('<html><body><h1>Error loading document</h1></body></html>');
+    }
+});
+
 // @route   GET /api/generate/documents/:id/html
-// @desc    Serve HTML content of generated document
+// @desc    Serve HTML content of generated document (legacy, protected)
 // @access  Private
 router.get('/documents/:id/html', protect, async (req, res) => {
     try {
@@ -253,6 +301,86 @@ router.get('/documents/:id/html', protect, async (req, res) => {
     } catch (error) {
         console.error('Serve HTML error:', error);
         res.status(500).send('<html><body><h1>Error loading document</h1></body></html>');
+    }
+});
+
+// @route   GET /api/generate/documents/:id/pdf
+// @desc    Download document as PDF
+// @access  Private
+router.get('/documents/:id/pdf', protect, async (req, res) => {
+    try {
+        const document = await GeneratedDocument.findOne({
+            _id: req.params.id,
+            userId: req.user._id
+        });
+        
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+        
+        if (!document.htmlContent) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document content not available'
+            });
+        }
+        
+        // Convert HTML to PDF using Puppeteer
+        console.log('Starting PDF generation for document:', req.params.id);
+        
+        if (!document.htmlContent || document.htmlContent.length < 10) {
+            console.error('Document has invalid HTML content length:', document.htmlContent ? document.htmlContent.length : 0);
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid document content'
+            });
+        }
+        
+        console.log('HTML Content length:', document.htmlContent.length);
+
+        const puppeteer = require('puppeteer');
+        const browser = await puppeteer.launch({
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        });
+        
+        const page = await browser.newPage();
+        console.log('Setting HTML content...');
+        await page.setContent(document.htmlContent, { waitUntil: 'networkidle0' });
+        
+        console.log('Generating PDF...');
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '2cm', right: '2cm', bottom: '2cm', left: '2cm' }
+        });
+        
+        await browser.close();
+        console.log('PDF generated successfully. Buffer size:', pdfBuffer.length);
+        
+        if (pdfBuffer.length === 0) {
+            throw new Error('Generated PDF buffer is empty');
+        }
+        
+        // Set headers for PDF download
+        const pdfFileName = document.fileName.replace('.html', '.pdf');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${pdfFileName}"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        
+        // Use res.end for binary data to prevent any encoding interference
+        res.end(pdfBuffer);
+        
+    } catch (error) {
+        console.error('PDF generation error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error generating PDF',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 

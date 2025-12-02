@@ -7,6 +7,7 @@ const s3Client = require('../config/s3');
 const Document = require('../models/Document');
 const { protect } = require('../middleware/auth');
 const { processDocument } = require('../utils/documentProcessor');
+const openai = require('../config/openai');
 const crypto = require('crypto');
 
 // Configure multer for memory storage
@@ -247,3 +248,79 @@ router.delete('/:id', protect, async (req, res) => {
 });
 
 module.exports = router;
+
+// NOTE: Additional compliance-check routes are defined below for clarity
+
+// @route   POST /api/documents/compliance-check
+// @desc    Upload a legal document and get an AI-based compliance review
+// @access  Private
+router.post('/compliance-check', protect, upload.single('document'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                message: 'No file uploaded'
+            });
+        }
+
+        // Extract plain text from the document using existing processor
+        const chunks = await processDocument(req.file.buffer, req.file.mimetype);
+        const text = chunks.map(c => c.text || '').join('\n\n').slice(0, 12000); // trim to keep prompt manageable
+
+        if (!text.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Could not extract readable text from the document.'
+            });
+        }
+
+        const prompt = `You are an experienced legal compliance assistant.
+You are given the full text of a legal contract or document.
+
+Your tasks:
+1. Briefly summarize what this document is about (2-3 sentences).
+2. Identify any potential compliance, risk, or fairness issues. Focus on:
+   - Unbalanced obligations
+   - Missing key protections
+   - Ambiguous or risky clauses
+   - Red flags for the weaker party
+3. Provide clear, actionable recommendations. For each issue, suggest concrete wording changes or clauses to add.
+4. If the document appears generally fine and balanced, clearly say so and still mention any minor improvements if applicable.
+
+Return your answer in clear markdown with sections:
+- Summary
+- Findings
+- Recommendations
+
+Here is the document text:
+"""
+${text}
+"""`;
+
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4.1-mini',
+            messages: [
+                { role: 'system', content: 'You are a precise, cautious legal compliance assistant. You are not giving formal legal advice, only risk-oriented suggestions.' },
+                { role: 'user', content: prompt }
+            ],
+            temperature: 0.2
+        });
+
+        const aiMessage = completion.choices?.[0]?.message?.content || 'No analysis could be generated.';
+
+        return res.status(200).json({
+            success: true,
+            message: 'Compliance analysis completed',
+            data: {
+                analysis: aiMessage
+            }
+        });
+    } catch (error) {
+        console.error('Compliance check error:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to run compliance check',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});

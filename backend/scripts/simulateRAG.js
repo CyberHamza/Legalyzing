@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const FormData = require('form-data');
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5005/api';
 const TEST_EMAIL = `test.rag.${Date.now()}@gmail.com`;
 const TEST_PASSWORD = 'Password123!';
 
