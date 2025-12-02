@@ -30,6 +30,7 @@ import { motion } from 'framer-motion';
 import { documentTemplates } from '../utils/mockData';
 import { generateAPI } from '../utils/api';
 import { useColorMode } from '../App';
+import html2pdf from 'html2pdf.js';
 
 const fadeIn = {
     initial: { opacity: 0, y: 20 },
@@ -52,6 +53,7 @@ const DocumentForm = () => {
     const [generatedDoc, setGeneratedDoc] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+    const [isDownloading, setIsDownloading] = useState(false);
 
     useEffect(() => {
         // Find template based on URL param
@@ -147,8 +149,9 @@ const DocumentForm = () => {
                 const doc = response.data.data.document;
                 setGeneratedDoc(doc);
                 
-                // Use the HTML URL for preview
-                const htmlUrl = `http://localhost:5000${doc.htmlUrl}`;
+                // Use the viewUrl or htmlUrl from the response
+                const url = doc.viewUrl || doc.htmlUrl;
+                const htmlUrl = url && url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
                 setPreviewUrl(htmlUrl);
                 
                 setNotification({
@@ -327,13 +330,77 @@ const DocumentForm = () => {
                                             <Button
                                                 variant="contained"
                                                 startIcon={<Download />}
-                                                href={previewUrl}
-                                                download
+                                                onClick={async () => {
+                                                    if (generatedDoc) {
+                                                        try {
+                                                            setIsDownloading(true);
+                                                            // 1. Get the HTML content URL
+                                                            const url = generatedDoc.viewUrl || generatedDoc.htmlUrl;
+                                                            if (!url) {
+                                                                alert('Document URL not found');
+                                                                return;
+                                                            }
+                                                            
+                                                            const fullUrl = url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
+
+                                                            // 2. Fetch the HTML content
+                                                            const response = await fetch(fullUrl);
+                                                            if (!response.ok) throw new Error('Failed to fetch document content');
+                                                            const htmlContent = await response.text();
+
+                                                            // 3. Create a temporary container with strict isolation
+                                                            const container = document.createElement('div');
+                                                            container.style.position = 'fixed';
+                                                            container.style.top = '0';
+                                                            container.style.left = '0';
+                                                            container.style.width = '0';
+                                                            container.style.height = '0';
+                                                            container.style.overflow = 'hidden';
+                                                            container.style.visibility = 'hidden';
+                                                            container.style.zIndex = '-9999';
+                                                            container.style.pointerEvents = 'none';
+                                                            document.body.appendChild(container);
+
+                                                            // Create the content element inside the container
+                                                            const element = document.createElement('div');
+                                                            element.innerHTML = htmlContent;
+                                                            element.style.width = '210mm'; // A4 width
+                                                            container.appendChild(element);
+                                                            
+                                                            // 4. Generate PDF
+                                                            const opt = {
+                                                                margin: 10,
+                                                                filename: generatedDoc.fileName ? generatedDoc.fileName.replace('.html', '.pdf') : 'document.pdf',
+                                                                image: { type: 'jpeg', quality: 0.98 },
+                                                                html2canvas: { 
+                                                                    scale: 2, 
+                                                                    useCORS: true,
+                                                                    scrollX: 0,
+                                                                    scrollY: 0,
+                                                                    windowWidth: document.documentElement.offsetWidth,
+                                                                    windowHeight: document.documentElement.offsetHeight
+                                                                },
+                                                                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                                            };
+
+                                                            await html2pdf().set(opt).from(element).save();
+                                                            
+                                                            // 5. Cleanup
+                                                            document.body.removeChild(container);
+                                                        } catch (error) {
+                                                            console.error('PDF generation error:', error);
+                                                            alert('Failed to generate PDF');
+                                                        } finally {
+                                                            setIsDownloading(false);
+                                                        }
+                                                    }
+                                                }}
                                                 size="small"
                                                 sx={{ borderRadius: '2px' }}
                                             >
-                                                Download
+                                                Download PDF
                                             </Button>
+
                                         </Box>
                                     )}
                                 </Box>
@@ -341,7 +408,7 @@ const DocumentForm = () => {
                                 {/* Preview Content */}
                                 <Box sx={{ 
                                     flexGrow: 1, 
-                                    bgcolor: mode === 'dark' ? '#1a1a1a' : '#f5f5f5',
+                                    bgcolor: '#ffffff',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
@@ -408,6 +475,44 @@ const DocumentForm = () => {
                     </Alert>
                 </Snackbar>
             </Container>
+            {/* Full-screen download overlay */}
+            {isDownloading && (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        bgcolor: 'rgba(15, 23, 42, 0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 2000,
+                        backdropFilter: 'blur(2px)',
+                        pointerEvents: 'all',
+                    }}
+                >
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 3,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 2,
+                            borderRadius: '8px',
+                        }}
+                    >
+                        <CircularProgress />
+                        <Typography variant="body2" color="text.secondary">
+                            Preparing your PDF download...
+                        </Typography>
+                    </Paper>
+                </Box>
+            )}
         </Box>
     );
 };

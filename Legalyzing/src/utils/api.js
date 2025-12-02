@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-    baseURL: 'http://localhost:5000/api',
+    baseURL: 'https://midl.comsats.edu.pk/legalize/api',
     headers: {
         'Content-Type': 'application/json'
     },
@@ -174,6 +174,25 @@ export const documentAPI = {
     // Delete document
     delete: async (id) => {
         const response = await api.delete(`/documents/${id}`);
+        return response.data;
+    },
+
+    // Compliance check on uploaded legal document
+    complianceCheck: async (file, onProgress) => {
+        const formData = new FormData();
+        formData.append('document', file);
+
+        const response = await api.post('/documents/compliance-check', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            },
+            onUploadProgress: (progressEvent) => {
+                if (onProgress) {
+                    const percent = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+                    onProgress(percent);
+                }
+            }
+        });
         return response.data;
     }
 };

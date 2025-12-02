@@ -55,12 +55,15 @@ import {
     Menu as MenuIcon,
     Download,
     CalendarToday,
-    Visibility
+    Visibility,
+    Gavel
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useColorMode } from '../App';
 import { chatAPI, documentAPI, authAPI, generateAPI, smartGenerateAPI } from '../utils/api';
+import ReactMarkdown from 'react-markdown';
+import html2pdf from 'html2pdf.js';
 
 // ... (rest of imports)
 
@@ -262,6 +265,7 @@ const ChatInterface = () => {
     const [attachedFiles, setAttachedFiles] = useState([]);
     const [uploadedDocs, setUploadedDocs] = useState([]);
     const [generatedDocs, setGeneratedDocs] = useState([]);
+    const [isComplianceChecking, setIsComplianceChecking] = useState(false);
 
     const [menuAnchorEl, setMenuAnchorEl] = useState(null);
     const [menuChatId, setMenuChatId] = useState(null);
@@ -276,6 +280,7 @@ const ChatInterface = () => {
     
     // Notification State
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const [leftOpen, setLeftOpen] = useState(true);
     const [rightOpen, setRightOpen] = useState(true);
@@ -681,6 +686,69 @@ const ChatInterface = () => {
                     >
                         New Chat
                     </Button>
+                    <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<Gavel />}
+                        component="label"
+                        sx={{
+                            mb: 2,
+                            textTransform: 'none',
+                            borderRadius: '2px',
+                            borderColor: 'primary.main',
+                            color: 'primary.main',
+                            fontSize: '0.85rem',
+                            '&:hover': {
+                                borderColor: 'primary.dark',
+                                bgcolor: mode === 'dark' ? 'rgba(148, 163, 184, 0.1)' : 'rgba(79, 70, 229, 0.04)'
+                            }
+                        }}
+                    >
+                        Compliance Checkup
+                        <input
+                            type="file"
+                            hidden
+                            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+
+                                // Reset input so selecting the same file again works
+                                e.target.value = '';
+
+                                setIsComplianceChecking(true);
+                                setMessages(prev => [...prev, {
+                                    role: 'user',
+                                    content: `📝 Please run a compliance checkup on: **${file.name}**`
+                                }]);
+
+                                try {
+                                    const response = await documentAPI.complianceCheck(file);
+
+                                    if (response.success) {
+                                        const analysis = response.data.analysis;
+                                        setMessages(prev => [...prev, {
+                                            role: 'assistant',
+                                            content: `✅ **Compliance Checkup Result for _${file.name}_**\n\n${analysis}`
+                                        }]);
+                                    } else {
+                                        setMessages(prev => [...prev, {
+                                            role: 'assistant',
+                                            content: `❌ Compliance check failed: ${response.message || 'Unknown error'}`
+                                        }]);
+                                    }
+                                } catch (err) {
+                                    console.error('Compliance check error:', err);
+                                    setMessages(prev => [...prev, {
+                                        role: 'assistant',
+                                        content: `❌ Failed to run compliance check: ${err.message || 'Unknown error'}`
+                                    }]);
+                                } finally {
+                                    setIsComplianceChecking(false);
+                                }
+                            }}
+                        />
+                    </Button>
                     <TextField
                         fullWidth
                         placeholder="Search chats..."
@@ -873,9 +941,20 @@ const ChatInterface = () => {
                                                 borderTopLeftRadius: message.role === 'user' ? '2px' : 0
                                             }}
                                         >
-                                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                                            {message.content}
-                                        </Typography>
+                                        <Box sx={{ '& p': { margin: 0 }, '& p + p': { marginTop: 1 } }}>
+                                            <ReactMarkdown
+                                                components={{
+                                                    p: ({node, ...props}) => <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.6 }} {...props} />,
+                                                    strong: ({node, ...props}) => <strong style={{ fontWeight: 700 }} {...props} />,
+                                                    em: ({node, ...props}) => <em {...props} />,
+                                                    ul: ({node, ...props}) => <ul style={{ margin: '8px 0', paddingLeft: '20px' }} {...props} />,
+                                                    ol: ({node, ...props}) => <ol style={{ margin: '8px 0', paddingLeft: '20px' }} {...props} />,
+                                                    li: ({node, ...props}) => <li style={{ marginBottom: '4px' }} {...props} />,
+                                                }}
+                                            >
+                                                {message.content}
+                                            </ReactMarkdown>
+                                        </Box>
                                         
                                         {/* Show Generate Document buttons if AI detected generation intent */}
                                         {message.role === 'assistant' && message.generationData && message.generationData.hasGenerationIntent && (
@@ -1276,7 +1355,15 @@ const ChatInterface = () => {
                                         <Tooltip title="Open in New Tab">
                                             <IconButton
                                                 size="small"
-                                                onClick={() => window.open(`http://localhost:5000/api/generate/documents/${doc._id}/html`, '_blank')}
+                                                onClick={() => {
+                                                    const url = doc.viewUrl || doc.htmlUrl;
+                                                    if (!url) {
+                                                        console.error('No viewUrl or htmlUrl available for document:', doc);
+                                                        return;
+                                                    }
+                                                    const fullUrl = url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
+                                                    window.open(fullUrl, '_blank');
+                                                }}
                                                 sx={{ 
                                                     color: 'primary.main',
                                                     '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.1)' }
@@ -1285,12 +1372,70 @@ const ChatInterface = () => {
                                                 <OpenInNew fontSize="small" />
                                             </IconButton>
                                         </Tooltip>
-                                        <Tooltip title="Download">
+                                        <Tooltip title="Download PDF">
                                             <IconButton
                                                 size="small"
-                                                component="a"
-                                                href={`http://localhost:5000/api/generate/documents/${doc._id}/html`}
-                                                download={doc.fileName}
+                                                onClick={async () => {
+                                                    try {
+                                                        setIsDownloading(true);
+                                                        const url = doc.viewUrl || doc.htmlUrl;
+                                                        if (!url) {
+                                                            console.error('No viewUrl or htmlUrl available for document:', doc);
+                                                            return;
+                                                        }
+                                                        const fullUrl = url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
+                                                        
+                                                        // Fetch HTML content
+                                                        const response = await fetch(fullUrl);
+                                                        if (!response.ok) throw new Error('Failed to fetch document content');
+                                                        const htmlContent = await response.text();
+
+                                                        // Create temporary container with strict isolation
+                                                        const container = document.createElement('div');
+                                                        container.style.position = 'fixed';
+                                                        container.style.top = '0';
+                                                        container.style.left = '0';
+                                                        container.style.width = '0';
+                                                        container.style.height = '0';
+                                                        container.style.overflow = 'hidden';
+                                                        container.style.visibility = 'hidden';
+                                                        container.style.zIndex = '-9999';
+                                                        container.style.pointerEvents = 'none';
+                                                        document.body.appendChild(container);
+
+                                                        // Create the content element inside the container
+                                                        const element = document.createElement('div');
+                                                        element.innerHTML = htmlContent;
+                                                        element.style.width = '210mm'; // A4 width
+                                                        container.appendChild(element);
+
+                                                        // Generate PDF
+                                                        const opt = {
+                                                            margin: 10,
+                                                            filename: doc.fileName ? doc.fileName.replace('.html', '.pdf') : 'document.pdf',
+                                                            image: { type: 'jpeg', quality: 0.98 },
+                                                            html2canvas: { 
+                                                                scale: 2, 
+                                                                useCORS: true,
+                                                                scrollX: 0,
+                                                                scrollY: 0,
+                                                                windowWidth: document.documentElement.offsetWidth,
+                                                                windowHeight: document.documentElement.offsetHeight
+                                                            },
+                                                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                                        };
+
+                                                        await html2pdf().set(opt).from(element).save();
+                                                        
+                                                        // Cleanup
+                                                        document.body.removeChild(container);
+                                                    } catch (error) {
+                                                        console.error('PDF generation error:', error);
+                                                        alert('Failed to generate PDF');
+                                                    } finally {
+                                                        setIsDownloading(false);
+                                                    }
+                                                }}
                                                 sx={{ 
                                                     color: 'success.main',
                                                     '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.1)' }
@@ -1417,6 +1562,82 @@ const ChatInterface = () => {
                     {error}
                 </Alert>
             </Snackbar>
+            {/* Full-screen compliance check overlay */}
+            {isComplianceChecking && (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        bgcolor: 'rgba(15, 23, 42, 0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 2100,
+                        backdropFilter: 'blur(2px)',
+                        pointerEvents: 'all',
+                    }}
+                >
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 3,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 2,
+                            borderRadius: '8px',
+                        }}
+                    >
+                        <CircularProgress />
+                        <Typography variant="body2" color="text.secondary" align="center">
+                            Running compliance checkup on your document... This may take a moment.
+                        </Typography>
+                    </Paper>
+                </Box>
+            )}
+            {/* Full-screen download overlay */}
+            {isDownloading && (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        bgcolor: 'rgba(15, 23, 42, 0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 2000,
+                        backdropFilter: 'blur(2px)',
+                        pointerEvents: 'all',
+                    }}
+                >
+                    <Paper
+                        elevation={3}
+                        sx={{
+                            p: 3,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 2,
+                            borderRadius: '8px',
+                        }}
+                    >
+                        <CircularProgress />
+                        <Typography variant="body2" color="text.secondary">
+                            Preparing your PDF download...
+                        </Typography>
+                    </Paper>
+                </Box>
+            )}
         </Box>
     );
 };
