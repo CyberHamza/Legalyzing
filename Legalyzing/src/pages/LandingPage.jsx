@@ -63,24 +63,19 @@ import { scrollToSection } from '../utils/helpers';
 import { useColorMode } from '../App';
 import { contactAPI } from '../utils/api';
 
-// Email validation utility
+// Email validation utility (relaxed but still safe)
 const validateEmail = (email) => {
-    const emailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]@[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]\\.[a-zA-Z]{2,}$/;
-    
+    if (!email) return false;
+
+    // Basic pattern: something@something.domain
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) return false;
-    
-    const atCount = (email.match(/@/g) || []).length;
-    if (atCount !== 1) return false;
-    
-    const [, domain] = email.split('@');
-    if (!domain || domain.length < 3) return false;
-    
-    const spamDomains = ['temp mail', 'throwaway', '10minutemail', 'guerrillamail', 'mailinator'];
-    const lowerDomain = domain.toLowerCase();
-    for (const spamDomain of spamDomains) {
-        if (lowerDomain.includes(spamDomain)) return false;
-    }
-    
+
+    // Optional lightweight spam-domain check on the domain only
+    const domain = email.split('@')[1]?.toLowerCase() || '';
+    const spamDomains = ['10minutemail', 'guerrillamail', 'mailinator'];
+    if (spamDomains.some(spam => domain.includes(spam))) return false;
+
     return true;
 };
 
@@ -809,6 +804,7 @@ const LandingPage = () => {
                                     <TextField fullWidth label="Full Name *" name="name" value={formData.name} onChange={handleInputChange} required sx={{ mb: 2 }} />
                                     <TextField fullWidth label="Email Address *" name="email" type="email" value={formData.email} onChange={handleInputChange} required sx={{ mb: 2 }} />
                                     <TextField fullWidth label="Phone Number" name="phone" value={formData.phone} onChange={handleInputChange} sx={{ mb: 2 }} />
+                                    <TextField fullWidth label="Subject *" name="subject" value={formData.subject} onChange={handleInputChange} required sx={{ mb: 2 }} />
                                     <TextField fullWidth label="Message *" name="message" multiline rows={4} value={formData.message} onChange={handleInputChange} required sx={{ mb: 3 }} />
                                     <Button 
                                         type="submit" 
