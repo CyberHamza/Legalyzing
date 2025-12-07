@@ -9,6 +9,7 @@ const documentRoutes = require('./routes/documents');
 const contactRoutes = require('./routes/contact');
 const generateRoutes = require('./routes/generate');
 const smartGenerateRoutes = require('./routes/smartGenerate');
+const constitutionalComplianceRoutes = require('./routes/constitutionalCompliance');
 
 // Initialize Express app
 const app = express();
@@ -63,6 +64,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/generate', generateRoutes);
 app.use('/api/smart-generate', smartGenerateRoutes);
+app.use('/api/constitutional-compliance', constitutionalComplianceRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -125,7 +127,7 @@ app.use((err, req, res, next) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log('='.repeat(50));
     console.log(`🚀 Server running in ${process.env.NODE_ENV} mode`);
     console.log(`📡 Server listening on port ${PORT}`);
@@ -133,6 +135,9 @@ app.listen(PORT, () => {
     console.log(`🔗 API URL: http://localhost:${PORT}`);
     console.log('='.repeat(50));
 });
+
+// Set server timeout to 10 minutes (600,000 ms) to handle long-running operations
+server.timeout = 600000;
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {

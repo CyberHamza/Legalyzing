@@ -103,6 +103,8 @@ router.post('/upload', protect, upload.single('document'), async (req, res) => {
     }
 });
 
+const pineconeService = require('../services/pineconeService');
+
 // Async function to process document
 async function processDocumentAsync(documentId, buffer, mimeType) {
     try {
@@ -112,12 +114,21 @@ async function processDocumentAsync(documentId, buffer, mimeType) {
         // Process document (extract text, chunk, generate embeddings)
         const chunks = await processDocument(buffer, mimeType);
 
-        // Update document with chunks
-        document.chunks = chunks;
+        // Store vectors in Pinecone
+        await pineconeService.upsertVectors(
+            document._id,
+            document.originalName,
+            document.user,
+            chunks
+        );
+
+        // Update document with processing status (no longer storing chunks in MongoDB)
+        document.chunkCount = chunks.length;
         document.processed = true;
+        document.pineconeIndexed = true;
         await document.save();
 
-        console.log(`✅ Document ${documentId} processed successfully`);
+        console.log(`✅ Document ${documentId} processed and indexed in Pinecone successfully`);
 
     } catch (error) {
         console.error(`❌ Error processing document ${documentId}:`, error);
@@ -126,6 +137,8 @@ async function processDocumentAsync(documentId, buffer, mimeType) {
         const document = await Document.findById(documentId);
         if (document) {
             document.processingError = error.message;
+            document.processed = false;
+            document.pineconeIndexed = false;
             await document.save();
         }
     }
@@ -139,7 +152,6 @@ router.get('/', protect, async (req, res) => {
         const documents = await Document.find({
             user: req.user.id
         })
-        .select('-chunks') // Exclude chunks for list view
         .sort({ createdAt: -1 });
 
         const formattedDocuments = documents.map(doc => ({
@@ -148,6 +160,8 @@ router.get('/', protect, async (req, res) => {
             fileSize: doc.fileSize,
             mimeType: doc.mimeType,
             processed: doc.processed,
+            pineconeIndexed: doc.pineconeIndexed,
+            chunkCount: doc.chunkCount || 0,
             processingError: doc.processingError,
             uploadedAt: doc.createdAt
         }));
@@ -191,7 +205,8 @@ router.get('/:id', protect, async (req, res) => {
                 fileSize: document.fileSize,
                 mimeType: document.mimeType,
                 processed: document.processed,
-                chunkCount: document.chunks.length,
+                pineconeIndexed: document.pineconeIndexed,
+                chunkCount: document.chunkCount || 0,
                 uploadedAt: document.createdAt
             }
         });
@@ -201,6 +216,48 @@ router.get('/:id', protect, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error fetching document'
+        });
+    }
+});
+
+// @route   GET /api/documents/:id/download
+// @desc    Get signed URL for document download
+// @access  Private
+router.get('/:id/download', protect, async (req, res) => {
+    try {
+        const document = await Document.findOne({
+            _id: req.params.id,
+            user: req.user.id
+        });
+
+        if (!document) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        // Generate signed URL valid for 1 hour
+        const command = new GetObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: document.s3Key
+        });
+
+        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+        res.status(200).json({
+            success: true,
+            data: {
+                url: signedUrl,
+                filename: document.originalName
+            }
+        });
+
+    } catch (error) {
+        console.error('Get download URL error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error generating download URL'
         });
     }
 });
@@ -220,6 +277,14 @@ router.delete('/:id', protect, async (req, res) => {
                 success: false,
                 message: 'Document not found'
             });
+        }
+
+        // Delete vectors from Pinecone
+        try {
+            await pineconeService.deleteVectors(document._id);
+        } catch (error) {
+            console.error('Error deleting from Pinecone:', error);
+            // Continue with deletion even if Pinecone fails
         }
 
         // Delete from S3
@@ -298,7 +363,7 @@ ${text}
 """`;
 
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4.1-mini',
+            model: 'gpt-4o',
             messages: [
                 { role: 'system', content: 'You are a precise, cautious legal compliance assistant. You are not giving formal legal advice, only risk-oriented suggestions.' },
                 { role: 'user', content: prompt }

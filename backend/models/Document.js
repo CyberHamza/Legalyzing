@@ -1,20 +1,5 @@
 const mongoose = require('mongoose');
 
-const chunkSchema = new mongoose.Schema({
-    text: {
-        type: String,
-        required: true
-    },
-    embedding: {
-        type: [Number],
-        required: true
-    },
-    chunkIndex: {
-        type: Number,
-        required: true
-    }
-});
-
 const documentSchema = new mongoose.Schema(
     {
         user: {
@@ -49,8 +34,15 @@ const documentSchema = new mongoose.Schema(
             required: true,
             enum: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
         },
-        chunks: [chunkSchema],
+        chunkCount: {
+            type: Number,
+            default: 0
+        },
         processed: {
+            type: Boolean,
+            default: false
+        },
+        pineconeIndexed: {
             type: Boolean,
             default: false
         },
@@ -62,8 +54,8 @@ const documentSchema = new mongoose.Schema(
     }
 );
 
-// Index for vector search
-documentSchema.index({ 'chunks.embedding': 1 });
+// Index for user queries
+documentSchema.index({ user: 1, processed: 1, pineconeIndexed: 1 });
 
 const Document = mongoose.model('Document', documentSchema);
 

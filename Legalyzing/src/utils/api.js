@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-    baseURL: 'https://midl.comsats.edu.pk/legalize/api',
+    baseURL: 'http://localhost:5000/api',
     headers: {
         'Content-Type': 'application/json'
     },
@@ -177,15 +177,22 @@ export const documentAPI = {
         return response.data;
     },
 
-    // Compliance check on uploaded legal document
-    complianceCheck: async (file, onProgress) => {
+    // Get signed download URL
+    getDownloadUrl: async (id) => {
+        const response = await api.get(`/documents/${id}/download`);
+        return response.data;
+    },
+
+    // Constitutional Compliance check on uploaded legal document
+    constitutionalComplianceCheck: async (file, onProgress) => {
         const formData = new FormData();
         formData.append('document', file);
 
-        const response = await api.post('/documents/compliance-check', formData, {
+        const response = await api.post('/constitutional-compliance/check', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             },
+            timeout: 600000, // 10 minutes for constitutional analysis
             onUploadProgress: (progressEvent) => {
                 if (onProgress) {
                     const percent = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));

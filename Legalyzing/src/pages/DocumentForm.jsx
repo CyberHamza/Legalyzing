@@ -151,7 +151,7 @@ const DocumentForm = () => {
                 
                 // Use the viewUrl or htmlUrl from the response
                 const url = doc.viewUrl || doc.htmlUrl;
-                const htmlUrl = url && url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
+                const htmlUrl = url && url.startsWith('http') ? url : `http://localhost:5000${url}`;
                 setPreviewUrl(htmlUrl);
                 
                 setNotification({
@@ -341,7 +341,7 @@ const DocumentForm = () => {
                                                                 return;
                                                             }
                                                             
-                                                            const fullUrl = url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
+                                                            const fullUrl = url.startsWith('http') ? url : `http://localhost:5000${url}`;
 
                                                             // 2. Fetch the HTML content
                                                             const response = await fetch(fullUrl);

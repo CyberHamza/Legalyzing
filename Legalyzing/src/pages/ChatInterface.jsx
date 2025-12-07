@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { formatComplianceReport } from '../utils/complianceReportFormatter';
 import {
     Box,
     Drawer,
@@ -266,6 +267,9 @@ const ChatInterface = () => {
     const [uploadedDocs, setUploadedDocs] = useState([]);
     const [generatedDocs, setGeneratedDocs] = useState([]);
     const [isComplianceChecking, setIsComplianceChecking] = useState(false);
+    const [inactivityTimer, setInactivityTimer] = useState(null);
+    const INACTIVITY_TIMEOUT = 600000; // 10 minutes in milliseconds
+
 
     const [menuAnchorEl, setMenuAnchorEl] = useState(null);
     const [menuChatId, setMenuChatId] = useState(null);
@@ -297,6 +301,42 @@ const ChatInterface = () => {
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
+
+    // Auto-logout security feature
+    const handleAutoLogout = () => {
+        console.log('Auto-logout triggered due to inactivity');
+        localStorage.removeItem('token');
+        navigate('/login');
+    };
+
+    const resetInactivityTimer = () => {
+        if (inactivityTimer) {
+            clearTimeout(inactivityTimer);
+        }
+        const timer = setTimeout(handleAutoLogout, INACTIVITY_TIMEOUT);
+        setInactivityTimer(timer);
+    };
+
+    // Setup inactivity listeners
+    useEffect(() => {
+        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+        
+        events.forEach(event => {
+            window.addEventListener(event, resetInactivityTimer);
+        });
+        
+        resetInactivityTimer();
+        
+        return () => {
+            events.forEach(event => {
+                window.removeEventListener(event, resetInactivityTimer);
+            });
+            if (inactivityTimer) {
+                clearTimeout(inactivityTimer);
+            }
+        };
+    }, []);
+
 
     const handleMenuOpen = (event, chatId, chatDate) => {
         event.stopPropagation();
@@ -438,10 +478,31 @@ const ChatInterface = () => {
             return updated;
         });
         setInputMessage('');
+        
+        // BUGFIX: Clear attached files immediately after adding to message
+        setAttachedFiles([]);
+        
         setIsTyping(true);
 
         try {
-            const documentIds = attachedFiles.map(f => f.id || f._id).filter(Boolean);
+            // Collect all relevant document IDs
+            // 1. Currently attached files
+            const attachedIds = attachedFiles.map(f => f.id || f._id).filter(Boolean);
+            
+            // 2. Existing chat documents
+            const existingIds = activeChat?.documentIds || [];
+
+            // 3. All uploaded documents (Sidebar)
+            // This ensures the AI can see everything the user has uploaded
+            const uploadedIds = uploadedDocs.map(d => d.id || d._id).filter(Boolean);
+
+            // 4. Generated documents (if any relevant)
+            const generatedIds = generatedDocs.map(d => d.id || d._id).filter(Boolean);
+            
+            // Merge and unique IDs - Prioritize attached > active > uploaded
+            const documentIds = [...new Set([...attachedIds, ...existingIds, ...uploadedIds, ...generatedIds])];
+
+            console.log('Sending message with FULL document context:', documentIds);
 
             const response = await chatAPI.sendMessage(
                 newMessage.content,
@@ -717,20 +778,39 @@ const ChatInterface = () => {
                                 e.target.value = '';
 
                                 setIsComplianceChecking(true);
-                                setMessages(prev => [...prev, {
-                                    role: 'user',
-                                    content: `📝 Please run a compliance checkup on: **${file.name}**`
-                                }]);
-
+                                
                                 try {
-                                    const response = await documentAPI.complianceCheck(file);
+                                    const response = await documentAPI.constitutionalComplianceCheck(file);
 
-                                    if (response.success) {
-                                        const analysis = response.data.analysis;
-                                        setMessages(prev => [...prev, {
-                                            role: 'assistant',
-                                            content: `✅ **Compliance Checkup Result for _${file.name}_**\n\n${analysis}`
-                                        }]);
+                                    if (response.success && response.data.conversationId) {
+                                        // Fetch the created conversation
+                                        const conversationResponse = await chatAPI.getConversation(response.data.conversationId);
+                                        
+                                        if (conversationResponse.success) {
+                                            const conv = conversationResponse.data;
+                                            
+                                            // Generate formatted report
+                                            const reportContent = formatComplianceReport(response.data, file.name);
+                                            
+                                            // Add report as a new message to the conversation
+                                            const updatedMessages = [
+                                                ...conv.messages,
+                                                {
+                                                    role: 'assistant',
+                                                    content: reportContent
+                                                }
+                                            ];
+                                            
+                                            // Set current conversation
+                                            setActiveChat(conv);
+                                            setMessages(updatedMessages);
+                                            
+                                            // Refresh conversations list
+                                            fetchConversations();
+                                            
+                                            // Show success message
+                                            console.log('✅ Compliance report loaded in conversation:', conv.id);
+                                        }
                                     } else {
                                         setMessages(prev => [...prev, {
                                             role: 'assistant',
@@ -1293,12 +1373,71 @@ const ChatInterface = () => {
                                             {new Date(doc.uploadDate).toLocaleDateString()}
                                         </Typography>
                                     </Box>
-                                    <IconButton
-                                        size="small"
-                                        onClick={(e) => handleDocMenuOpen(e, doc)}
-                                    >
-                                        <MoreVert fontSize="small" />
-                                    </IconButton>
+                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                        <Tooltip title="Open in New Tab">
+                                            <IconButton
+                                                size="small"
+                                                onClick={async () => {
+                                                    try {
+                                                        const result = await documentAPI.getDownloadUrl(doc.id || doc._id);
+                                                        if (result.success && result.data.url) {
+                                                            window.open(result.data.url, '_blank', 'noopener,noreferrer');
+                                                        }
+                                                    } catch (err) {
+                                                        console.error('Error opening document:', err);
+                                                    }
+                                                }}
+                                                sx={{ 
+                                                    color: 'primary.main',
+                                                    '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.1)' }
+                                                }}
+                                            >
+                                                <OpenInNew fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Download">
+                                            <IconButton
+                                                size="small"
+                                                onClick={async () => {
+                                                    try {
+                                                        const result = await documentAPI.getDownloadUrl(doc.id || doc._id);
+                                                        if (result.success && result.data.url) {
+                                                            const link = document.createElement('a');
+                                                            link.href = result.data.url;
+                                                            link.download = result.data.filename || doc.filename;
+                                                            link.target = '_blank';
+                                                            document.body.appendChild(link);
+                                                            link.click();
+                                                            document.body.removeChild(link);
+                                                        }
+                                                    } catch (err) {
+                                                        console.error('Error downloading document:', err);
+                                                    }
+                                                }}
+                                                sx={{ 
+                                                    color: 'success.main',
+                                                    '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.1)' }
+                                                }}
+                                            >
+                                                <Download fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Delete">
+                                            <IconButton
+                                                size="small"
+                                                onClick={() => {
+                                                    setItemToDelete({ type: 'document', data: doc });
+                                                    setDeleteDialogOpen(true);
+                                                }}
+                                                sx={{ 
+                                                    color: 'error.main',
+                                                    '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.1)' }
+                                                }}
+                                            >
+                                                <Delete fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Box>
                                 </Paper>
                             </ListItem>
                         ))}

@@ -6,7 +6,7 @@ const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const openai = require('../config/openai');
 const { generateEmbedding } = require('../utils/documentProcessor');
-const { findRelevantChunks } = require('../utils/vectorSearch');
+const pineconeService = require('../services/pineconeService');
 const { extractFacts } = require('../services/factExtractor');
 const { detectIntent, getDocumentTypeName } = require('../services/intentDetector');
 const { generateFieldStatusMessage, mapFactsToFields } = require('../services/fieldMapper');
@@ -40,6 +40,16 @@ router.post('/', protect, async (req, res) => {
                     message: 'Conversation not found'
                 });
             }
+
+            // Update documentIds if provided
+            if (documentIds && documentIds.length > 0) {
+                const existingDocs = conversation.documentIds.map(id => id.toString());
+                const newDocs = documentIds.filter(id => !existingDocs.includes(id));
+                
+                if (newDocs.length > 0) {
+                    conversation.documentIds.push(...newDocs);
+                }
+            }
         } else {
             // Create new conversation
             conversation = new Conversation({
@@ -65,19 +75,25 @@ router.post('/', protect, async (req, res) => {
             const documents = await Document.find({
                 _id: { $in: documentIds },
                 user: req.user.id,
-                processed: true
+                processed: true,
+                pineconeIndexed: true
             });
 
-            console.log(`✅ Found ${documents.length} processed documents`);
+            console.log(`✅ Found ${documents.length} processed and indexed documents`);
 
             if (documents.length > 0) {
                 // Generate embedding for user query
                 const queryEmbedding = await generateEmbedding(message);
 
-                // Find relevant chunks - increased to 8 for better context
-                const relevantChunks = findRelevantChunks(documents, queryEmbedding, 8);
+                // Query Pinecone for relevant chunks
+                const relevantChunks = await pineconeService.queryVectors(
+                    queryEmbedding,
+                    8, // top K results
+                    req.user.id,
+                    documentIds
+                );
 
-                console.log(`🔍 Found ${relevantChunks.length} relevant chunks`);
+                console.log(`🔍 Found ${relevantChunks.length} relevant chunks from Pinecone`);
 
                 if (relevantChunks.length > 0) {
                     hasDocumentContext = true;
@@ -92,7 +108,7 @@ router.post('/', protect, async (req, res) => {
                     context += '=== END OF DOCUMENT CONTEXT ===\n';
                 }
             } else {
-                console.log('⚠️  No processed documents found or still processing');
+                console.log('⚠️  No processed and indexed documents found or still processing');
             }
         }
 
@@ -133,7 +149,7 @@ Your primary job is to help users understand their legal documents and answer qu
 
         // Get AI response with optimized parameters
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4',
+            model: 'gpt-4o',
             messages: messages,
             temperature: 0.3, // Lower for more focused, factual responses
             max_tokens: 1500, // Increased for detailed document-based answers
@@ -224,7 +240,7 @@ Your primary job is to help users understand their legal documents and answer qu
         if (conversation.messages.length <= 2 && conversation.title === 'New Conversation') {
             try {
                 const titleCompletion = await openai.chat.completions.create({
-                    model: 'gpt-3.5-turbo',
+                    model: 'gpt-4o',
                     messages: [
                         {
                             role: 'system',

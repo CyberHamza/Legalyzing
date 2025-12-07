@@ -89,12 +89,14 @@ function splitIntoChunks(text, maxChars = 1500, overlapChars = 200) {
 
 /**
  * Generate embeddings for text using OpenAI
+ * Configured to output 1024 dimensions to match Pinecone index
  */
 async function generateEmbedding(text) {
     try {
         const response = await openai.embeddings.create({
             model: 'text-embedding-3-small',
-            input: text
+            input: text,
+            dimensions: 1024 // Match Pinecone index dimensions
         });
         
         return response.data[0].embedding;
