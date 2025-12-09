@@ -363,7 +363,7 @@ ${text}
 """`;
 
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: 'gpt-4o-mini',
             messages: [
                 { role: 'system', content: 'You are a precise, cautious legal compliance assistant. You are not giving formal legal advice, only risk-oriented suggestions.' },
                 { role: 'user', content: prompt }

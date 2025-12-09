@@ -1010,31 +1010,95 @@ const ChatInterface = () => {
                                             mode={mode} 
                                         />
                                     ) : (
-                                        <Paper
-                                            elevation={0}
-                                            sx={{
-                                                p: 2,
-                                                bgcolor: message.role === 'user' ? 'primary.main' : (mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'white'),
-                                                color: message.role === 'user' ? 'white' : 'text.primary',
-                                                borderRadius: '2px',
-                                                borderTopRightRadius: message.role === 'user' ? 0 : '2px',
-                                                borderTopLeftRadius: message.role === 'user' ? '2px' : 0
-                                            }}
-                                        >
-                                        <Box sx={{ '& p': { margin: 0 }, '& p + p': { marginTop: 1 } }}>
-                                            <ReactMarkdown
-                                                components={{
-                                                    p: ({node, ...props}) => <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.6 }} {...props} />,
-                                                    strong: ({node, ...props}) => <strong style={{ fontWeight: 700 }} {...props} />,
-                                                    em: ({node, ...props}) => <em {...props} />,
-                                                    ul: ({node, ...props}) => <ul style={{ margin: '8px 0', paddingLeft: '20px' }} {...props} />,
-                                                    ol: ({node, ...props}) => <ol style={{ margin: '8px 0', paddingLeft: '20px' }} {...props} />,
-                                                    li: ({node, ...props}) => <li style={{ marginBottom: '4px' }} {...props} />,
+                                        <>
+                                            {/* File Bubble for Uploaded Documents */}
+                                            {message.metadata?.fileName && (
+                                                <Paper
+                                                    elevation={0}
+                                                    sx={{
+                                                        p: 1.5,
+                                                        mb: 1,
+                                                        bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                                                        borderRadius: '8px',
+                                                        border: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 1.5,
+                                                        maxWidth: '400px'
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            width: 40,
+                                                            height: 40,
+                                                            borderRadius: '6px',
+                                                            bgcolor: 'primary.main',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            flexShrink: 0
+                                                        }}
+                                                    >
+                                                        <Description sx={{ color: 'white', fontSize: 20 }} />
+                                                    </Box>
+                                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                        <Typography
+                                                            variant="body2"
+                                                            sx={{
+                                                                fontWeight: 600,
+                                                                fontSize: '0.875rem',
+                                                                overflow: 'hidden',
+                                                                textOverflow: 'ellipsis',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            {message.metadata.fileName}
+                                                        </Typography>
+                                                        {message.metadata.fileSize && (
+                                                            <Typography
+                                                                variant="caption"
+                                                                sx={{
+                                                                    color: 'text.secondary',
+                                                                    fontSize: '0.75rem'
+                                                                }}
+                                                            >
+                                                                {(message.metadata.fileSize / 1024).toFixed(1)} KB
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                </Paper>
+                                            )}
+                                            
+                                            {/* Message Content */}
+                                            <Paper
+                                                elevation={0}
+                                                sx={{
+                                                    p: 2,
+                                                    bgcolor: message.role === 'user' ? 'primary.main' : (mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'white'),
+                                                    color: message.role === 'user' ? 'white' : 'text.primary',
+                                                    borderRadius: '2px',
+                                                    borderTopRightRadius: message.role === 'user' ? 0 : '2px',
+                                                    borderTopLeftRadius: message.role === 'user' ? '2px' : 0
                                                 }}
                                             >
-                                                {message.content}
-                                            </ReactMarkdown>
-                                        </Box>
+                                                <Box sx={{ '& p': { margin: 0 }, '& p + p': { marginTop: 1 } }}>
+                                                    <ReactMarkdown
+                                                        components={{
+                                                            p: ({node, ...props}) => <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.6 }} {...props} />,
+                                                            strong: ({node, ...props}) => <strong style={{ fontWeight: 700 }} {...props} />,
+                                                            em: ({node, ...props}) => <em {...props} />,
+                                                            ul: ({node, ...props}) => <ul style={{ margin: '8px 0', paddingLeft: '20px' }} {...props} />,
+                                                            ol: ({node, ...props}) => <ol style={{ margin: '8px 0', paddingLeft: '20px' }} {...props} />,
+                                                            li: ({node, ...props}) => <li style={{ marginBottom: '4px' }} {...props} />,
+                                                            h2: ({node, ...props}) => <Typography variant="h6" sx={{ fontWeight: 700, mt: 2, mb: 1 }} {...props} />,
+                                                            h3: ({node, ...props}) => <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1.5, mb: 0.5 }} {...props} />,
+                                                            hr: ({node, ...props}) => <Divider sx={{ my: 1.5 }} {...props} />,
+                                                        }}
+                                                    >
+                                                        {message.content}
+                                                    </ReactMarkdown>
+                                                </Box>
+                                            </Paper>
                                         
                                         {/* Show Generate Document buttons if AI detected generation intent */}
                                         {message.role === 'assistant' && message.generationData && message.generationData.hasGenerationIntent && (
@@ -1127,7 +1191,8 @@ const ChatInterface = () => {
                                                 </Typography>
                                             </Box>
                                         )}
-                                        </Paper>
+
+                                        </>
                                     )}
                                     {message.files && message.files.length > 0 && (
                                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>

@@ -8,9 +8,7 @@ const generatedDocumentSchema = new mongoose.Schema({
     },
     documentType: {
         type: String,
-        required: [true, 'Document type is required'],
-        enum: ['house-rent', 'employment-contract', 'nda', 'partnership-deed', 'sale-deed'],
-        default: 'house-rent'
+        required: [true, 'Document type is required']
     },
     fileName: {
         type: String,

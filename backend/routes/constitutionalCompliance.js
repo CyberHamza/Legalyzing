@@ -9,11 +9,13 @@ const Conversation = require('../models/Conversation');
 const { extractText } = require('../utils/documentProcessor');
 const { extractSentencesWithProvenance } = require('../services/sentenceExtractor');
 const { processDocumentCompliance } = require('../services/complianceMatchingEngine');
-const { generateComplianceReport } = require('../services/complianceReportGenerator');
+const { generateComplianceReport, generateStrictMarkdown } = require('../services/complianceReportGenerator');
 const { generatePDFReport } = require('../services/pdfReportGenerator');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs').promises;
+const OpenAI = require('openai');
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Configure multer for memory storage
 const upload = multer({
@@ -119,6 +121,10 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
         // Step 5: Generate comprehensive report
         console.log('   📝 Generating comprehensive compliance report...');
         const report = await generateComplianceReport(documentMeta, sentences, mappings);
+        
+        // Generate Strict Markdown for Chat Persistence
+        console.log('   📋 Generating strict markdown format...');
+        const strictMarkdown = generateStrictMarkdown(report);
 
         // Step 6: Generate PDF report
         console.log('   📄 Generating PDF report...');
@@ -203,33 +209,66 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
         await complianceCheck.save();
         console.log('   ✅ Compliance check saved to database\n');
 
-        // Step 10: Create a conversation for this compliance check
+        // Step 10: Generate Smart Title & Create Persistent Conversation
+        console.log('   🧠 Generating smart chat title...');
+        let chatTitle = `Compliance: ${req.file.originalname.substring(0, 30)}`;
+        try {
+            const titlePrompt = `Generate a concise, professional chat title based on this legal compliance document summary:
+"${report.summary.executiveSummary.substring(0, 300)}"
+
+Requirements:
+1. Format MUST be "Subject - Topic" (e.g., "SC Judgment - Article 25 Compliance")
+2. Maximum 6 words total.
+3. Use strict legal terminology.
+4. No quotes, no labels like "Title:", just the text.`;
+            
+            const titleResponse = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [{ role: 'user', content: titlePrompt }],
+                temperature: 0.3,
+                max_tokens: 30
+            });
+            chatTitle = titleResponse.choices[0].message.content.replace(/['"]/g, '').trim();
+            console.log(`   ✅ Generated title: "${chatTitle}"`);
+        } catch (e) {
+            console.error('   ⚠️  Title generation failed, using default:', e.message);
+        }
+
         const conversation = new Conversation({
             user: req.user.id,
-            title: `Compliance: ${req.file.originalname.substring(0, 30)}`,
+            title: chatTitle,
             messages: [
                 {
                     role: 'user',
-                    content: `📝 Please run a compliance checkup on: **${req.file.originalname}**`
+                    content: `📝 Compliance Check for: **${req.file.originalname}**`,
+                    metadata: {
+                        fileName: req.file.originalname,
+                        fileSize: req.file.size,
+                        s3Url: s3Url
+                    }
                 },
                 {
                     role: 'assistant',
-                    content: 'Compliance analysis completed. See detailed report below.',
+                    content: strictMarkdown, // PERSISTENT STRICT MARKDOWN REPORT
                     metadata: {
                         complianceCheckId: complianceCheck._id,
-                        reportId: report.report_id
+                        reportId: report.report_id,
+                        isStrictReport: true,
+                        reportType: 'constitutional_compliance'
                     }
                 }
             ],
             documentIds: [],
             metadata: {
                 isComplianceReport: true,
-                reportId: report.report_id
+                reportId: report.report_id,
+                complianceScore: complianceCheck.complianceScore,
+                documentName: req.file.originalname
             }
         });
 
         await conversation.save();
-        console.log('   ✅ Conversation created for compliance check\n');
+        console.log('   ✅ Conversation created with persistent strict report\n');
 
         // Step 11: Return comprehensive response
         res.status(200).json({

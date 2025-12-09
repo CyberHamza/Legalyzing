@@ -102,7 +102,7 @@ Return a JSON object with the extracted facts following this structure:
 }`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o', // Changed from gpt-4 to support JSON response format
+            model: 'gpt-4o-mini', // Changed from gpt-4 to support JSON response format
             messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: `Conversation:\n${conversationText}\n\nExtract all factual information from this conversation.` }

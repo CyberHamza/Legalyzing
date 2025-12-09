@@ -201,7 +201,65 @@ const generateGenericHTML = (title, formData) => {
     return html;
 };
 
+/**
+ * Generate Legal Document HTML using Handlebars templates
+ * @param {string} templateId - ID of the template in registry
+ * @param {Object} formData - Form data
+ * @returns {String} - HTML string
+ */
+const generateLegalDocumentHTML = (templateId, formData) => {
+    const Handlebars = require('handlebars');
+    const templates = require('../config/documentTemplates');
+    
+    const templateDef = templates.find(t => t.id === templateId);
+    
+    if (!templateDef) {
+        throw new Error(`Template ${templateId} not found`);
+    }
+    
+    // Compile the Handlebars template
+    const compileTemplate = Handlebars.compile(templateDef.template);
+    const bodyHtml = compileTemplate(formData);
+    
+    // Wrap in standard legal document layout
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${templateDef.name}</title>
+    <style>
+        @page { size: A4; margin: 2cm; }
+        body { 
+            font-family: 'Times New Roman', serif; 
+            font-size: 12pt; 
+            line-height: 1.5; 
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+        h2, h3 { text-align: center; text-decoration: underline; margin-bottom: 20px; color: #000; }
+        p { margin-bottom: 15px; text-align: justify; }
+        ul, ol { margin-bottom: 15px; padding-left: 30px; }
+        li { margin-bottom: 5px; }
+        strong { font-weight: bold; }
+        
+        /* Print styles */
+        @media print {
+            body { margin: 0; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    ${bodyHtml}
+</body>
+</html>
+    `;
+};
+
 module.exports = { 
     generateRentAgreementHTML, 
-    generateGenericHTML 
+    generateGenericHTML,
+    generateLegalDocumentHTML
 };

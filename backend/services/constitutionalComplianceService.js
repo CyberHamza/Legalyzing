@@ -205,7 +205,7 @@ CRITICAL REQUIREMENTS:
 ✓ Return ONLY valid JSON`;
 
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4o', // Changed to gpt-4o for cost savings
+            model: 'gpt-4o-mini', // Changed to gpt-4o-mini for cost savings
             messages: [
                 {
                     role: 'system',

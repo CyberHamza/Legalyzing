@@ -13,7 +13,16 @@ const messageSchema = new mongoose.Schema({
     timestamp: {
         type: Date,
         default: Date.now
-    }
+    },
+    metadata: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {}
+    },
+    files: [{
+        filename: String,
+        id: String,
+        processed: Boolean
+    }]
 });
 
 const conversationSchema = new mongoose.Schema(

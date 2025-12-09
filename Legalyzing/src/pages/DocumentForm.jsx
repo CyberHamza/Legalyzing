@@ -13,7 +13,9 @@ import {
     Alert,
     IconButton,
     useTheme,
-    Tooltip
+    Tooltip,
+    Chip,
+    Stack
 } from '@mui/material';
 import { 
     Description, 
@@ -24,7 +26,10 @@ import {
     Visibility,
     OpenInNew,
     CheckCircle,
-    PictureAsPdf
+    PictureAsPdf,
+    Add,
+    Delete,
+    Cancel
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { documentTemplates } from '../utils/mockData';
@@ -54,6 +59,33 @@ const DocumentForm = () => {
     const [previewUrl, setPreviewUrl] = useState(null);
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
     const [isDownloading, setIsDownloading] = useState(false);
+    const [tempInputs, setTempInputs] = useState({});
+
+    // Handler for adding items to a list field
+    const handleListAdd = (fieldName) => {
+        const val = tempInputs[fieldName];
+        if (!val || !val.trim()) return;
+        
+        const currentList = Array.isArray(formData[fieldName]) ? formData[fieldName] : [];
+        setFormData(prev => ({
+            ...prev,
+            [fieldName]: [...currentList, val.trim()]
+        }));
+        
+        // Clear input
+        setTempInputs(prev => ({
+            ...prev,
+            [fieldName]: ''
+        }));
+    };
+
+    const handleListRemove = (fieldName, index) => {
+        const currentList = Array.isArray(formData[fieldName]) ? formData[fieldName] : [];
+        setFormData(prev => ({
+            ...prev,
+            [fieldName]: currentList.filter((_, i) => i !== index)
+        }));
+    };
 
     useEffect(() => {
         // Find template based on URL param
@@ -230,25 +262,74 @@ const DocumentForm = () => {
                                 <form onSubmit={handleSubmit}>
                                     <Grid container spacing={3}>
                                         {fields.map((field) => (
-                                            <Grid item xs={12} md={field.type === 'text' && field.name.includes('Address') ? 12 : 6} key={field.name}>
-                                                <TextField
-                                                    fullWidth
-                                                    label={field.label}
-                                                    name={field.name}
-                                                    type={field.type}
-                                                    value={formData[field.name] || ''}
-                                                    onChange={handleInputChange}
-                                                    error={!!errors[field.name]}
-                                                    helperText={errors[field.name]}
-                                                    required={field.required}
-                                                    InputLabelProps={field.type === 'date' ? { shrink: true } : {}}
-                                                    size="medium"
-                                                    sx={{
-                                                        '& .MuiOutlinedInput-root': {
-                                                            borderRadius: '2px'
-                                                        }
-                                                    }}
-                                                />
+                                            <Grid item xs={12} md={field.type === 'text' && field.name.includes('Address') || field.type === 'textarea' || field.type === 'list' ? 12 : 6} key={field.name}>
+                                                {field.type === 'list' ? (
+                                                    <Box>
+                                                        <Typography variant="subtitle2" gutterBottom color="text.secondary">
+                                                            {field.label} {field.required && '*'}
+                                                        </Typography>
+                                                        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                                                            <TextField
+                                                                fullWidth
+                                                                size="small"
+                                                                placeholder={`Add ${field.label}...`}
+                                                                value={tempInputs[field.name] || ''}
+                                                                onChange={(e) => setTempInputs(prev => ({ ...prev, [field.name]: e.target.value }))}
+                                                                onKeyPress={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.preventDefault();
+                                                                        handleListAdd(field.name);
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <Button 
+                                                                variant="outlined" 
+                                                                onClick={() => handleListAdd(field.name)}
+                                                                startIcon={<Add />}
+                                                            >
+                                                                Add
+                                                            </Button>
+                                                        </Box>
+                                                        <Stack direction="row" flexWrap="wrap" gap={1}>
+                                                            {(Array.isArray(formData[field.name]) ? formData[field.name] : []).map((item, idx) => (
+                                                                <Chip
+                                                                    key={idx}
+                                                                    label={item}
+                                                                    onDelete={() => handleListRemove(field.name, idx)}
+                                                                    color="primary"
+                                                                    variant="outlined"
+                                                                    size="small"
+                                                                />
+                                                            ))}
+                                                            {(!formData[field.name] || formData[field.name].length === 0) && (
+                                                                <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                                                                    No items added yet
+                                                                </Typography>
+                                                            )}
+                                                        </Stack>
+                                                    </Box>
+                                                ) : (
+                                                    <TextField
+                                                        fullWidth
+                                                        label={field.label}
+                                                        name={field.name}
+                                                        type={field.type === 'textarea' ? 'text' : field.type}
+                                                        multiline={field.type === 'textarea'}
+                                                        rows={field.type === 'textarea' ? 4 : 1}
+                                                        value={formData[field.name] || ''}
+                                                        onChange={handleInputChange}
+                                                        error={!!errors[field.name]}
+                                                        helperText={errors[field.name]}
+                                                        required={field.required}
+                                                        InputLabelProps={field.type === 'date' ? { shrink: true } : {}}
+                                                        size="medium"
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                borderRadius: '2px'
+                                                            }
+                                                        }}
+                                                    />
+                                                )}
                                             </Grid>
                                         ))}
                                     </Grid>

@@ -74,7 +74,7 @@ Return ONLY valid JSON:
 }`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: 'gpt-4o-mini',
             messages: [
                 {
                     role: 'system',
@@ -178,7 +178,7 @@ Provide a concise 2-3 sentence explanation that:
 Be specific and factual.`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: 'gpt-4o-mini',
             messages: [
                 {
                     role: 'system',

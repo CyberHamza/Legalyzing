@@ -10,16 +10,26 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  * Generate executive summary for the compliance report
  */
 async function generateExecutiveSummary(documentName, documentText, mappings) {
-    // SIMPLIFIED: Use template instead of GPT-4 to avoid timeout
-    const stats = analyzeComplianceStats(mappings);
-    
-    const summary = `Constitutional compliance analysis of "${documentName}". ` +
-        `The document was analyzed against the Constitution of Pakistan with ${mappings.length} sections reviewed. ` +
-        `Results: ${stats.yesCount} sections fully compliant, ${stats.noCount} violations identified, ` +
-        `${stats.partialCount} sections require further review. ` +
-        `Overall compliance status: ${stats.overallStatus.replace('_', ' ')}.`;
-    
-    return summary;
+    try {
+        const prompt = `Summarize this legal document for a constitutional compliance report.
+        
+Document Name: "${documentName}"
+Document Text (Excerpt): "${documentText.substring(0, 5000)}"
+
+Provide a highly efficient, thorough summary (3-4 sentences) outlining the directives, procedural background, and final instructions. Do NOT mention compliance yet.`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'system', content: 'You are a legal summarizer.' }, { role: 'user', content: prompt }],
+            temperature: 0.3,
+            max_tokens: 300
+        });
+
+        return response.choices[0].message.content.trim();
+    } catch (error) {
+        console.error('Error generating summary:', error);
+        return `Constitutional analysis of ${documentName}. (Summary unavailable due to error)`;
+    }
 }
 
 /**
@@ -176,7 +186,7 @@ Return as JSON:
 }`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: 'gpt-4o-mini',
             messages: [{
                 role: 'system',
                 content: 'You are a constitutional lawyer providing precise remediation guidance.'
@@ -383,7 +393,7 @@ async function generateComplianceReport(documentMeta, sentences, mappings) {
             metadata: {
                 generatedBy: 'Legalyze Constitutional Compliance Checker',
                 version: '2.0',
-                modelUsed: 'gpt-4o',
+                modelUsed: 'gpt-4o-mini',
                 constitutionSource: 'Constitution of Pakistan.txt',
                 analysisDate: new Date().toISOString()
             }
@@ -457,9 +467,175 @@ function generateSuggestedActions(violations, stats) {
     return actions;
 }
 
+
+
+/**
+ * Generate complete compliance report
+ */
+async function generateComplianceReport(documentMeta, sentences, mappings) {
+    console.log('📝 Generating comprehensive compliance report...');
+    
+    try {
+        // Generate report ID
+        const reportId = `RPT-${new Date().toISOString().split('T')[0]}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+        
+        // Analyze compliance statistics
+        const stats = analyzeComplianceStats(mappings);
+        
+        // Generate article-by-article breakdown
+        const articleBreakdown = generateArticleBreakdown(mappings);
+        
+        // Generate executive summary
+        const executiveSummary = await generateExecutiveSummary(
+            documentMeta.name,
+            documentMeta.fullText || '',
+            mappings
+        );
+        
+        // Identify violations
+        const violations = await identifyViolations(mappings);
+        
+        // Create detailed key findings
+        const keyFindings = [
+            `Overall compliance: ${stats.overallStatus.replace('_', ' ')}`,
+            `Total constitutional articles reviewed: ${articleBreakdown.totalArticlesReviewed}`,
+            `✅ Fully compliant articles: ${articleBreakdown.compliantArticles.length}`,
+            `❌ Non-compliant articles: ${articleBreakdown.nonCompliantArticles.length}`,
+            `⚠️ Partially compliant articles: ${articleBreakdown.partiallyCompliantArticles.length}`,
+            `Total document snippets analyzed: ${stats.total}`,
+            violations.length > 0 ? `Required actions: ${violations.filter(v => v.severity === 'HIGH').length} high-priority remediations` : 'No critical violations identified'
+        ];
+        
+        // Build complete report
+        const report = {
+            report_id: reportId,
+            uploaded_file: documentMeta.s3Path || documentMeta.name,
+            uploaded_file_meta: {
+                name: documentMeta.name,
+                size: documentMeta.size,
+                type: documentMeta.mimeType,
+                uploadedBy: documentMeta.userId,
+                uploadTimestamp: documentMeta.timestamp || new Date().toISOString()
+            },
+            timestamp: new Date().toISOString(),
+            
+            summary: {
+                documentTitle: documentMeta.name,
+                executiveSummary,
+                keyFindings,
+                overallCompliance: stats.overallStatus,
+                totalArticlesReviewed: articleBreakdown.totalArticlesReviewed,
+                totalSnippets: stats.total,
+                highConfidenceFindings: stats.highConfidence,
+                partialComplianceFindings: stats.partialCount,
+                violationsCount: stats.noCount
+            },
+            
+            // DETAILED ARTICLE-BY-ARTICLE BREAKDOWN
+            article_analysis: {
+                compliant_articles: articleBreakdown.compliantArticles,
+                non_compliant_articles: articleBreakdown.nonCompliantArticles,
+                partially_compliant_articles: articleBreakdown.partiallyCompliantArticles,
+                statistics: {
+                    total_articles: articleBreakdown.totalArticlesReviewed,
+                    compliant_count: articleBreakdown.compliantArticles.length,
+                    non_compliant_count: articleBreakdown.nonCompliantArticles.length,
+                    partially_compliant_count: articleBreakdown.partiallyCompliantArticles.length
+                }
+            },
+            
+            // Raw mappings for detailed analysis
+            mappings: mappings.map((m, idx) => ({
+                ...m,
+                mapping_id: idx + 1
+            })),
+            
+            violations: violations,
+            
+            // Enhanced confidence summary
+            confidence_summary: generateConfidenceSummary(mappings),
+            
+            // Enhanced provenance log  
+            provenance_log: generateProvenanceLog(mappings),
+            
+            suggested_actions: generateSuggestedActions(violations, stats),
+            
+            metadata: {
+                generatedBy: 'Legalyze Constitutional Compliance Checker',
+                version: '2.0',
+                modelUsed: 'gpt-4o-mini',
+                constitutionSource: 'Constitution of Pakistan.txt',
+                analysisDate: new Date().toISOString()
+            }
+        };
+        
+        console.log(`✅ Report generated: ${reportId}`);
+        console.log(`   Articles Reviewed: ${articleBreakdown.totalArticlesReviewed}`);
+        console.log(`   ✅ Compliant: ${articleBreakdown.compliantArticles.length}`);
+        console.log(`   ❌ Non-Compliant: ${articleBreakdown.nonCompliantArticles.length}`);
+        console.log(`   ⚠️  Partial: ${articleBreakdown.partiallyCompliantArticles.length}`);
+        console.log(`   Violations: ${violations.length}`);
+        console.log(`   Overall: ${stats.overallStatus}`);
+        
+        return report;
+        
+    } catch (error) {
+        console.error('Error generating compliance report:', error);
+        throw error;
+    }
+}
+
+
+/**
+ * Generate strict markdown report for chat persistence
+ */
+function generateStrictMarkdown(report) {
+    let md = '';
+    
+    // Section 1: Summary
+    md += `## 📌 Section 1 — Summary of the Uploaded Document\n\n`;
+    md += `${report.summary.executiveSummary}\n\n`;
+    
+    // Section 2: Compliance Findings
+    md += `## 📌 Section 2 — Compliance With the Constitution of Pakistan\n`;
+    md += `### ✔ Compliant Clauses\n\n`;
+    
+    const compliantMappings = report.mappings.filter(m => m.decision === 'YES');
+    if (compliantMappings.length === 0) {
+        md += `*No fully compliant clauses strictly identified in the excerpts analyzed.*\n\n`;
+    } else {
+        compliantMappings.forEach(m => {
+            md += `**Document Line:** "${m.uploaded_text_snippet.substring(0, 150)}..."\n\n`;
+            md += `**Compliant With:** ${m.constitution_match.article} — ${m.constitution_match.articleHeading}\n\n`;
+            md += `---\n\n`;
+        });
+    }
+    
+    // Section 3: Non-Compliance
+    md += `## 📌 Section 3 — Non-Compliance / Loopholes\n`;
+    md += `### ❌ Non-Compliant Clauses\n\n`;
+    
+    const nonCompliantMappings = report.mappings.filter(m => m.decision === 'NO' || m.decision === 'PARTIAL');
+    if (nonCompliantMappings.length === 0) {
+        md += `*No clear violations identified in the analyzed sections.*\n\n`;
+    } else {
+        nonCompliantMappings.forEach(m => {
+            md += `**Document Line:** "${m.uploaded_text_snippet.substring(0, 150)}..."\n\n`;
+            md += `**Violation:** ${m.constitution_match.article} — ${m.constitution_match.articleHeading}\n\n`;
+            md += `**Why:** ${m.rationale}\n\n`;
+            md += `---\n\n`;
+        });
+    }
+    
+    return md;
+}
+
 module.exports = {
     generateComplianceReport,
     generateExecutiveSummary,
     identifyViolations,
-    analyzeComplianceStats
+    analyzeComplianceStats,
+    generateStrictMarkdown
 };
+
+

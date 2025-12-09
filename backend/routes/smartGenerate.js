@@ -138,11 +138,29 @@ router.post('/generate', protect, async (req, res) => {
             htmlContent = generateRentAgreementHTML(mappedFields);
             fileName = `Rent_Agreement_${mappedFields.companyName?.replace(/\s+/g, '_') || 'Document'}_${Date.now()}.html`;
         } else {
-            // Use generic HTML generator for other types
-            const { generateGenericHTML } = require('../utils/htmlGenerator');
-            const title = documentType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-            htmlContent = generateGenericHTML(title + ' Document', mappedFields);
-            fileName = `${documentType}_${Date.now()}.html`;
+            // Check if it exists in our new template registry
+            let isRegistryTemplate = false;
+            try {
+                const templates = require('../config/documentTemplates');
+                const templateDef = templates.find(t => t.id === documentType);
+                
+                if (templateDef) {
+                    const { generateLegalDocumentHTML } = require('../utils/htmlGenerator');
+                    htmlContent = generateLegalDocumentHTML(documentType, mappedFields);
+                    fileName = `${templateDef.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.html`;
+                    isRegistryTemplate = true;
+                }
+            } catch (err) {
+                console.warn('Template registry check failed, falling back to generic:', err.message);
+            }
+
+            if (!isRegistryTemplate) {
+                // Use generic HTML generator for other types
+                const { generateGenericHTML } = require('../utils/htmlGenerator');
+                const title = documentType.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                htmlContent = generateGenericHTML(title + ' Document', mappedFields);
+                fileName = `${documentType}_${Date.now()}.html`;
+            }
         }
 
         // Save to database with HTML content

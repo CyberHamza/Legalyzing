@@ -50,60 +50,133 @@ export const documentTemplates = [
         ]
     },
     {
-        id: 'employment-contract',
-        name: 'Employment Contract',
-        description: 'Employee Agreement',
-        icon: 'WorkIcon',
+        id: 'pre-arrest-bail',
+        name: 'Petition U/S 498 Cr.P.C (Pre-Arrest Bail)',
+        description: 'Petition for grant of pre-arrest bail',
+        icon: 'GavelIcon',
         fields: [
-            { name: 'employerName', label: 'Employer Name', type: 'text', required: true },
-            { name: 'employeeName', label: 'Employee Name', type: 'text', required: true },
-            { name: 'position', label: 'Job Position', type: 'text', required: true },
-            { name: 'salary', label: 'Annual Salary', type: 'number', required: true },
-            { name: 'startDate', label: 'Start Date', type: 'date', required: true },
-            { name: 'benefits', label: 'Benefits Package', type: 'textarea', required: true },
-            { name: 'workHours', label: 'Work Hours per Week', type: 'number', required: true }
+            { name: 'court_name', label: 'Court Name', type: 'text', required: true },
+            { name: 'city', label: 'City', type: 'text', required: true },
+            { name: 'case_number', label: 'Case Number', type: 'text', required: true },
+            { name: 'petitioner_name', label: 'Petitioner Name', type: 'text', required: true },
+            { name: 'petitioner_father', label: 'Petitioner Father Name', type: 'text', required: true },
+            { name: 'petitioner_address', label: 'Petitioner Address', type: 'textarea', required: true },
+            { name: 'respondents', label: 'Respondents', type: 'list', required: true },
+            { name: 'fir_number', label: 'FIR Number', type: 'text', required: true },
+            { name: 'fir_date', label: 'FIR Date', type: 'date', required: true },
+            { name: 'offence_sections', label: 'Offence Sections', type: 'text', required: true },
+            { name: 'police_station', label: 'Police Station', type: 'text', required: true },
+            { name: 'district', label: 'District', type: 'text', required: true },
+            { name: 'allegation_summary', label: 'Allegation Summary', type: 'textarea', required: true },
+            { name: 'grounds_list', label: 'Grounds for Bail', type: 'list', required: true },
+            { name: 'advocate_name', label: 'Advocate Name', type: 'text', required: true },
+            { name: 'advocate_address', label: 'Advocate Address', type: 'textarea', required: true },
+            { name: 'date', label: 'Date', type: 'date', required: true }
         ]
     },
     {
-        id: 'nda',
-        name: 'NDA Document',
-        description: 'Non-Disclosure Agreement',
+        id: 'affidavit-pre-arrest',
+        name: 'Affidavit (Pre-Arrest Bail)',
+        description: 'Affidavit in support of Pre-Arrest Bail Petition',
         icon: 'DescriptionIcon',
         fields: [
-            { name: 'disclosingParty', label: 'Disclosing Party Name', type: 'text', required: true },
-            { name: 'receivingParty', label: 'Receiving Party Name', type: 'text', required: true },
-            { name: 'effectiveDate', label: 'Effective Date', type: 'date', required: true },
-            { name: 'terminationDate', label: 'Termination Date', type: 'date', required: true },
-            { name: 'confidentialInfo', label: 'Confidential Information Scope', type: 'textarea', required: true },
-            { name: 'purpose', label: 'Purpose of Disclosure', type: 'textarea', required: true }
+            { name: 'court_name', label: 'Court Name', type: 'text', required: true },
+            { name: 'city', label: 'City', type: 'text', required: true },
+            { name: 'petitioner_name', label: 'Petitioner Name', type: 'text', required: true },
+            { name: 'father_name', label: 'Father Name', type: 'text', required: true },
+            { name: 'address', label: 'Address', type: 'textarea', required: true },
+            { name: 'date', label: 'Date', type: 'date', required: true }
         ]
     },
     {
-        id: 'partnership-deed',
-        name: 'Partnership Agreement',
-        description: 'Business Partnership Contract',
-        icon: 'HandshakeIcon',
+        id: 'early-hearing-application',
+        name: 'Early Hearing Application',
+        description: 'Application for early hearing of a case',
+        icon: 'EventIcon',
         fields: [
-            { name: 'partner1', label: 'Partner 1 Name', type: 'text', required: true },
-            { name: 'partner2', label: 'Partner 2 Name', type: 'text', required: true },
-            { name: 'businessName', label: 'Business Name', type: 'text', required: true },
-            { name: 'capitalContribution', label: 'Capital Contribution Details', type: 'textarea', required: true },
-            { name: 'profitSharing', label: 'Profit Sharing Ratio', type: 'text', required: true },
-            { name: 'effectiveDate', label: 'Effective Date', type: 'date', required: true }
+            { name: 'court_name', label: 'Court Name', type: 'text', required: true },
+            { name: 'city', label: 'City', type: 'text', required: true },
+            { name: 'case_title', label: 'Case Title', type: 'text', required: true },
+            { name: 'date_fixed', label: 'Date Fixed', type: 'date', required: true },
+            { name: 'previous_date', label: 'Previous Date', type: 'date', required: true },
+            { name: 'allegations', label: 'Harassment/Details', type: 'textarea', required: true },
+            { name: 'reason_for_early_hearing', label: 'Reason for Early Hearing', type: 'textarea', required: true },
+            { name: 'advocate_name', label: 'Advocate Name', type: 'text', required: true },
+            { name: 'advocate_address', label: 'Advocate Address', type: 'textarea', required: true },
+            { name: 'date', label: 'Date', type: 'date', required: true }
         ]
     },
     {
-        id: 'sale-deed',
-        name: 'Sale Deed',
-        description: 'Property Sale Agreement',
-        icon: 'ShoppingCartIcon',
+        id: 'legal-certificate-bail',
+        name: 'Legal Certificate (Bail)',
+        description: 'Certificate for non-arrest direction',
+        icon: 'VerifiedUserIcon',
         fields: [
-            { name: 'seller', label: 'Seller Name', type: 'text', required: true },
-            { name: 'buyer', label: 'Buyer Name', type: 'text', required: true },
-            { name: 'propertyDescription', label: 'Property Description', type: 'textarea', required: true },
-            { name: 'salePrice', label: 'Sale Price', type: 'number', required: true },
-            { name: 'paymentTerms', label: 'Payment Terms', type: 'textarea', required: true },
-            { name: 'closingDate', label: 'Closing Date', type: 'date', required: true }
+            { name: 'advocate_name', label: 'Advocate Name', type: 'text', required: true },
+            { name: 'advocate_reference', label: 'Reference No.', type: 'text', required: true },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'petitioner_names', label: 'Petitioner Names', type: 'list', required: true },
+            { name: 'case_number', label: 'Case Number', type: 'text', required: true },
+            { name: 'police_station', label: 'Police Station', type: 'text', required: true },
+            { name: 'offence_sections', label: 'Offence Sections', type: 'text', required: true },
+            { name: 'court_name', label: 'Court Name', type: 'text', required: true },
+            { name: 'bail_start_date', label: 'Bail Start Date', type: 'date', required: true },
+            { name: 'bail_end_date', label: 'Bail End Date', type: 'date', required: true },
+            { name: 'bail_amount', label: 'Bail Amount', type: 'text', required: true }
+        ]
+    },
+    {
+        id: 'power-of-attorney',
+        name: 'Power of Attorney (Vakalatnama)',
+        description: 'Legal authorization for advocate representation',
+        icon: 'WorkIcon',
+        fields: [
+            { name: 'case_number', label: 'Case Number', type: 'text', required: true },
+            { name: 'offence', label: 'Offence', type: 'text', required: true },
+            { name: 'police_station', label: 'Police Station', type: 'text', required: true },
+            { name: 'court_name', label: 'Court Name', type: 'text', required: true },
+            { name: 'client_name', label: 'Client Name', type: 'text', required: true },
+            { name: 'advocate_name', label: 'Advocate Name', type: 'text', required: true },
+            { name: 'date', label: 'Date', type: 'date', required: true },
+            { name: 'client_signature', label: 'Signature Placeholder', type: 'text', required: true }
+        ]
+    },
+    {
+        id: 'cancellation-of-bail',
+        name: 'Cancellation of Bail Application',
+        description: 'Application u/s 497(5) Cr.P.C',
+        icon: 'BlockIcon',
+        fields: [
+            { name: 'court_name', label: 'Court Name', type: 'text', required: true },
+            { name: 'city', label: 'City', type: 'text', required: true },
+            { name: 'petitioner_name', label: 'Petitioner Name', type: 'text', required: true },
+            { name: 'father_name', label: 'Father Name', type: 'text', required: true },
+            { name: 'address', label: 'Address', type: 'textarea', required: true },
+            { name: 'respondents', label: 'Respondents', type: 'list', required: true },
+            { name: 'fir_number', label: 'FIR Number', type: 'text', required: true },
+            { name: 'fir_date', label: 'FIR Date', type: 'date', required: true },
+            { name: 'police_station', label: 'Police Station', type: 'text', required: true },
+            { name: 'offence_sections', label: 'Offence Sections', type: 'text', required: true },
+            { name: 'incident_summary', label: 'Incident Summary', type: 'textarea', required: true },
+            { name: 'injury_details', label: 'Injury Details', type: 'textarea', required: true },
+            { name: 'bail_order_date', label: 'Bail Order Date', type: 'date', required: true },
+            { name: 'grounds_list', label: 'Grounds for Cancellation', type: 'list', required: true },
+            { name: 'advocate_name', label: 'Advocate Name', type: 'text', required: true },
+            { name: 'date', label: 'Date', type: 'date', required: true }
+        ]
+    },
+    {
+        id: 'affidavit-22a-22b',
+        name: 'Affidavit (22-A / 22-B Cr.P.C)',
+        description: 'Affidavit for Justice of Peace petition',
+        icon: 'DescriptionIcon',
+        fields: [
+            { name: 'court_name', label: 'Court Name', type: 'text', required: true },
+            { name: 'city', label: 'City', type: 'text', required: true },
+            { name: 'petitioner_name', label: 'Petitioner Name', type: 'text', required: true },
+            { name: 'father_name', label: 'Father Name', type: 'text', required: true },
+            { name: 'address', label: 'Address', type: 'textarea', required: true },
+            { name: 'affidavit_date', label: 'Date', type: 'date', required: true }
         ]
     }
 ];

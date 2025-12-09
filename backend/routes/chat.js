@@ -60,10 +60,20 @@ router.post('/', protect, async (req, res) => {
         }
 
         // Add user message
-        conversation.messages.push({
+        const userMessage = {
             role: 'user',
             content: message
-        });
+        };
+
+        if (req.body.files) {
+            userMessage.files = req.body.files;
+        }
+
+        if (req.body.metadata) {
+            userMessage.metadata = req.body.metadata;
+        }
+
+        conversation.messages.push(userMessage);
 
         // Prepare context from documents if provided
         let context = '';
@@ -149,7 +159,7 @@ Your primary job is to help users understand their legal documents and answer qu
 
         // Get AI response with optimized parameters
         const completion = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: 'gpt-4o-mini',
             messages: messages,
             temperature: 0.3, // Lower for more focused, factual responses
             max_tokens: 1500, // Increased for detailed document-based answers
@@ -240,7 +250,7 @@ Your primary job is to help users understand their legal documents and answer qu
         if (conversation.messages.length <= 2 && conversation.title === 'New Conversation') {
             try {
                 const titleCompletion = await openai.chat.completions.create({
-                    model: 'gpt-4o',
+                    model: 'gpt-4o-mini',
                     messages: [
                         {
                             role: 'system',

@@ -63,7 +63,7 @@ Return a JSON object with:
 If the user is just asking about documents or discussing them without requesting generation, set hasIntent to false.`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o', // Changed from gpt-4 to support JSON response format
+            model: 'gpt-4o-mini', // Changed from gpt-4 to support JSON response format
             messages: [
                 { role: 'system', content: systemPrompt },
                 ...conversationHistory.slice(-5), // Include last 5 messages for context
