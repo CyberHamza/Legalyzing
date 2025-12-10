@@ -32,7 +32,8 @@ async function upsertVectors(documentId, documentName, userId, chunks) {
                 documentId: documentId.toString(),
                 documentName: documentName,
                 chunkIndex: chunk.chunkIndex,
-                text: chunk.text.substring(0, 40000) // Pinecone metadata limit
+                text: chunk.text.substring(0, 40000), // Pinecone metadata limit
+                ...(chunk.metadata || {})
             }
         }));
 
@@ -59,16 +60,24 @@ async function upsertVectors(documentId, documentName, userId, chunks) {
  * @param {string} userId - User ID for filtering
  * @param {Array} documentIds - Optional array of document IDs to filter by
  */
-async function queryVectors(queryEmbedding, topK = 5, userId, documentIds = null) {
+async function queryVectors(queryEmbedding, topK = 5, userId, documentIds = null, chatId = null) {
     try {
         const index = getIndex();
         
         // Build filter
         const filter = { userId: userId.toString() };
         
-        // Add document ID filter if provided
+        // Add Chat ID filter (scoped RAG)
+        // CRITICAL FIX: If documentIds are provided, we rely on them explicitly and skip chatId filter
+        // to avoid mismatch issues (e.g. doc uploaded as 'unsorted' but queried in new chat).
+        // We only use chatId filter if NO documentIds are provided (pure context search).
+        
         if (documentIds && documentIds.length > 0) {
             filter.documentId = { $in: documentIds.map(id => id.toString()) };
+            console.log('🔍 Querying Pinecone by Document IDs:', documentIds.length);
+        } else if (chatId) {
+            filter.chatId = chatId.toString();
+            console.log('🔍 Querying Pinecone by Chat ID:', chatId);
         }
 
         // Query Pinecone

@@ -46,7 +46,22 @@ const documentSchema = new mongoose.Schema(
             type: Boolean,
             default: false
         },
-        processingError: String
+        processingError: String,
+        
+        // Intelligence Data
+        docType: String,
+        summary: {
+            facts: String,
+            legalIssues: [String],
+            reliefSought: String
+        },
+        extractedText: String, // Store full text for persistence
+        
+        // Context
+        chatId: {
+            type: String,
+            index: true
+        }
     },
     {
         timestamps: true,

@@ -75,33 +75,25 @@ router.post('/', protect, async (req, res) => {
 
         conversation.messages.push(userMessage);
 
-        // Prepare context from documents if provided
+        // Prepare context from documents (Chat-Scoped RAG)
         let context = '';
         let hasDocumentContext = false;
         
-        if (documentIds && documentIds.length > 0) {
-            console.log('📄 Processing documents for RAG:', documentIds);
+        // Always try to retrieve context if we have a conversation ID or specific docs
+        if (conversationId || (documentIds && documentIds.length > 0)) {
+            console.log('📄 Processing RAG for Chat:', conversationId);
             
-            const documents = await Document.find({
-                _id: { $in: documentIds },
-                user: req.user.id,
-                processed: true,
-                pineconeIndexed: true
-            });
+            // Generate embedding for user query
+            const queryEmbedding = await generateEmbedding(message);
 
-            console.log(`✅ Found ${documents.length} processed and indexed documents`);
-
-            if (documents.length > 0) {
-                // Generate embedding for user query
-                const queryEmbedding = await generateEmbedding(message);
-
-                // Query Pinecone for relevant chunks
-                const relevantChunks = await pineconeService.queryVectors(
-                    queryEmbedding,
-                    8, // top K results
-                    req.user.id,
-                    documentIds
-                );
+            // Query Pinecone for relevant chunks (Scoped to Chat ID)
+            const relevantChunks = await pineconeService.queryVectors(
+                queryEmbedding,
+                8, // top K results
+                req.user.id,
+                documentIds,
+                conversationId // Pass Chat ID for scoping
+            );
 
                 console.log(`🔍 Found ${relevantChunks.length} relevant chunks from Pinecone`);
 
@@ -117,8 +109,19 @@ router.post('/', protect, async (req, res) => {
                     
                     context += '=== END OF DOCUMENT CONTEXT ===\n';
                 }
-            } else {
-                console.log('⚠️  No processed and indexed documents found or still processing');
+
+        }
+
+        // Check for pending documents
+        let hasPendingDocs = false;
+        if (documentIds && documentIds.length > 0) {
+            const pendingCount = await Document.countDocuments({
+                _id: { $in: documentIds },
+                processed: false
+            });
+            if (pendingCount > 0) {
+                 hasPendingDocs = true;
+                 console.log('⚠️ Request references pending documents');
             }
         }
 
@@ -138,7 +141,11 @@ CRITICAL INSTRUCTIONS:
 6. Be concise but thorough
 
 Your primary job is to help users understand their legal documents and answer questions based on their content.`
-                    : 'You are Legalyze AI, a helpful legal assistant. Provide accurate, professional, and helpful legal responses.'
+                    : hasPendingDocs 
+                        ? `You are Legalyze AI. The user is asking about a document that is currently being processed by the system.
+                           Politely inform them that you cannot read the document yet because it is still analyzing (OCR and Vectorization in progress).
+                           Ask them to wait a moment and try again.`
+                        : 'You are Legalyze AI, a helpful legal assistant. Provide accurate, professional, and helpful legal responses.'
             }
         ];
 

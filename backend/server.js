@@ -142,6 +142,6 @@ server.timeout = 600000;
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
     console.error('❌ Unhandled Promise Rejection:', err);
-    // Close server & exit process
-    process.exit(1);
+    // Do not crash the server in production/dev for minor async errors
+    // process.exit(1);
 });

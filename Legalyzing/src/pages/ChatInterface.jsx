@@ -575,12 +575,14 @@ const ChatInterface = () => {
         try {
             const uploaded = [];
             for (const file of files) {
-                const response = await documentAPI.upload(file);
+                // Pass activeChat.id to link document to this chat
+                const response = await documentAPI.upload(file, activeChat?.id || activeChat?._id);
                 if (response.success) {
                     const docData = { ...response.data, processing: true };
                     uploaded.push(docData);
                     
                     // NEW: Add document message to chat
+
                     setMessages(prev => [...prev, {
                         role: 'user',
                         type: 'document',
@@ -1305,7 +1307,10 @@ const ChatInterface = () => {
                             color="primary" 
                             sx={{ p: '10px' }} 
                             onClick={handleSendMessage}
-                            disabled={!inputMessage.trim() && attachedFiles.length === 0}
+                            disabled={
+                                (!inputMessage.trim() && attachedFiles.length === 0) || 
+                                attachedFiles.some(f => f.processing || !f.processed)
+                            }
                         >
                             <Send />
                         </IconButton>
@@ -1396,8 +1401,91 @@ const ChatInterface = () => {
                 <Divider sx={{ borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }} />
 
                 <Box sx={{ p: 2, flexGrow: 1, overflow: 'auto' }}>
+                    {/* Chat Specific Documents */}
+                    {activeChat && (
+                        <>
+                            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, display: 'block' }}>
+                                Documents in this Chat
+                            </Typography>
+                            <List disablePadding sx={{ mb: 3 }}>
+                                {uploadedDocs.filter(doc => {
+                                    const chatId = activeChat.id || activeChat._id;
+                                    const docChatId = doc.chatId || (doc.metadata && doc.metadata.chatId);
+                                    // Match by explicit chatId OR if doc ID is in conversation's documentIds
+                                    return (docChatId === chatId) || (activeChat.documentIds && activeChat.documentIds.includes(doc.id || doc._id));
+                                }).map((doc) => (
+                                    <ListItem
+                                        key={doc._id || doc.id}
+                                        disablePadding
+                                        sx={{ mb: 1 }}
+                                    >
+                                        <Paper
+                                            elevation={0}
+                                            sx={{
+                                                width: '100%',
+                                                p: 1,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1.5,
+                                                background: mode === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.05)',
+                                                border: `1px solid ${mode === 'dark' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.2)'}`,
+                                                borderRadius: '2px',
+                                                minHeight: '40px'
+                                            }}
+                                        >
+                                            <Avatar
+                                                sx={{
+                                                    bgcolor: 'primary.main',
+                                                    color: 'white',
+                                                    width: 32,
+                                                    height: 32
+                                                }}
+                                            >
+                                                <Description fontSize="small" />
+                                            </Avatar>
+                                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                                <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                                    {doc.filename || doc.originalName}
+                                                </Typography>
+                                                {doc.docType && (
+                                                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'primary.main', display: 'block' }}>
+                                                        {doc.docType}
+                                                    </Typography>
+                                                )}
+                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                                    {new Date(doc.uploadDate || doc.createdAt).toLocaleDateString()}
+                                                </Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                 <Tooltip title="View">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => window.open(doc.s3Url || doc.url, '_blank')}
+                                                        sx={{ color: 'primary.main' }}
+                                                    >
+                                                        <Visibility fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
+                                        </Paper>
+                                    </ListItem>
+                                ))}
+                                {uploadedDocs.filter(doc => {
+                                     const chatId = activeChat.id || activeChat._id;
+                                     const docChatId = doc.chatId || (doc.metadata && doc.metadata.chatId);
+                                     return (docChatId === chatId) || (activeChat.documentIds && activeChat.documentIds.includes(doc.id || doc._id));
+                                }).length === 0 && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', display: 'block', mb: 1 }}>
+                                        No documents in this chat
+                                    </Typography>
+                                )}
+                            </List>
+                            <Divider sx={{ mb: 2, borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }} />
+                        </>
+                    )}
+
                     <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, display: 'block' }}>
-                        Uploaded Files
+                        All Uploaded Files
                     </Typography>
                     <List disablePadding>
                         {uploadedDocs.map((doc) => (

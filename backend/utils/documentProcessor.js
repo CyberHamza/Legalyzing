@@ -35,73 +35,39 @@ async function extractTextFromDOCX(buffer) {
 /**
  * Extract text based on file type
  */
+const { extractTextFromImage } = require('../services/ocrService');
+const { splitTextStructurally } = require('../services/structureAwareChunker');
+
+/**
+ * Extract text based on file type
+ */
 async function extractText(buffer, mimeType) {
     if (mimeType === 'application/pdf') {
         return await extractTextFromPDF(buffer);
     } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         return await extractTextFromDOCX(buffer);
+    } else if (mimeType.startsWith('image/')) {
+        return await extractTextFromImage(buffer);
     } else {
         throw new Error(`Unsupported file type: ${mimeType}`);
     }
 }
 
 /**
- * Split text into chunks with overlap for better context preservation
- * This ensures that important context isn't lost at chunk boundaries
- */
-function splitIntoChunks(text, maxChars = 1500, overlapChars = 200) {
-    const chunks = [];
-    
-    // Split into sentences more intelligently
-    const sentences = text.match(/[^.!?]+[.!?]+[\s"]*/g) || [text];
-    
-    let currentChunk = '';
-    let previousChunk = '';
-    
-    for (let i = 0; i < sentences.length; i++) {
-        const sentence = sentences[i].trim();
-        
-        // If adding this sentence would exceed max length
-        if ((currentChunk + ' ' + sentence).length > maxChars && currentChunk.length > 0) {
-            // Save current chunk
-            chunks.push(currentChunk.trim());
-            
-            // Start new chunk with overlap from previous chunk
-            // Get last few sentences for context
-            const overlapText = currentChunk.slice(-overlapChars);
-            previousChunk = currentChunk;
-            currentChunk = overlapText + ' ' + sentence;
-        } else {
-            currentChunk += (currentChunk ? ' ' : '') + sentence;
-        }
-    }
-    
-    // Add the last chunk if it has content
-    if (currentChunk.trim().length > 0) {
-        chunks.push(currentChunk.trim());
-    }
-    
-    // Filter out very small chunks (less than 20 chars) to avoid noise
-    const validChunks = chunks.filter(chunk => chunk.length >= 20);
-    console.log(`Chunking complete: ${chunks.length} raw chunks, ${validChunks.length} valid chunks`);
-    return validChunks;
-}
-
-/**
- * Generate embeddings for text using OpenAI
- * Configured to output 1024 dimensions to match Pinecone index
+ * Generate embedding for text
  */
 async function generateEmbedding(text) {
     try {
         const response = await openai.embeddings.create({
-            model: 'text-embedding-3-small',
+            model: "text-embedding-3-small",
             input: text,
-            dimensions: 1024 // Match Pinecone index dimensions
+            encoding_format: "float",
         });
-        
+
         return response.data[0].embedding;
     } catch (error) {
-        throw new Error(`Embedding generation failed: ${error.message}`);
+        console.error('Error generating embedding:', error);
+        throw error;
     }
 }
 
@@ -116,8 +82,8 @@ async function processDocument(buffer, mimeType) {
         throw new Error('No text could be extracted from document');
     }
     
-    // Split into chunks
-    const textChunks = splitIntoChunks(text, 1000);
+    // Split into chunks using Structure Aware Chunker
+    const textChunks = splitTextStructurally(text);
     
     // Generate embeddings for each chunk
     const chunks = [];
@@ -130,12 +96,11 @@ async function processDocument(buffer, mimeType) {
         });
     }
     
-    return chunks;
+    return { chunks, text };
 }
 
 module.exports = {
     extractText,
-    splitIntoChunks,
     generateEmbedding,
     processDocument
 };

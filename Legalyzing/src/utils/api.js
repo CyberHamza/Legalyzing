@@ -6,7 +6,7 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json'
     },
-    timeout: 60000 // 60 seconds timeout
+    timeout: 300000 // 5 minutes timeout for long RAG operations
 });
 
 // Request interceptor - Add JWT token to requests
@@ -141,9 +141,12 @@ export const chatAPI = {
 // Document API endpoints
 export const documentAPI = {
     // Upload document
-    upload: async (file, onProgress) => {
+    upload: async (file, chatId, onProgress) => {
         const formData = new FormData();
         formData.append('document', file);
+        if (chatId) {
+            formData.append('chatId', chatId);
+        }
 
         const response = await api.post('/documents/upload', formData, {
             headers: {

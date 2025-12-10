@@ -8,6 +8,10 @@ const Document = require('../models/Document');
 const { protect } = require('../middleware/auth');
 const { processDocument } = require('../utils/documentProcessor');
 const openai = require('../config/openai');
+const { protect } = require('../middleware/auth');
+const { processDocument } = require('../utils/documentProcessor');
+const { classifyDocument, generateSummary } = require('../services/legalIntelligence');
+const openai = require('../config/openai');
 const crypto = require('crypto');
 
 // Configure multer for memory storage
@@ -44,7 +48,8 @@ router.post('/upload', protect, upload.single('document'), async (req, res) => {
 
         // Generate unique filename
         const fileExtension = req.file.originalname.split('.').pop();
-        const uniqueFilename = `${req.user.id}/${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${fileExtension}`;
+        const chatId = req.body.chatId || 'unsorted';
+        const uniqueFilename = `${req.user.id}/chats/${chatId}/documents/${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${fileExtension}`;
 
         // Upload to S3 with AES-256 encryption
         const uploadParams = {
@@ -55,7 +60,8 @@ router.post('/upload', protect, upload.single('document'), async (req, res) => {
             ServerSideEncryption: 'AES256', // AES-256 encryption
             Metadata: {
                 originalName: req.file.originalname,
-                uploadedBy: req.user.id.toString()
+                uploadedBy: req.user.id.toString(),
+                chatId: chatId 
             }
         };
 
@@ -73,7 +79,11 @@ router.post('/upload', protect, upload.single('document'), async (req, res) => {
             s3Url: s3Url,
             fileSize: req.file.size,
             mimeType: req.file.mimetype,
-            processed: false
+            s3Url: s3Url,
+            fileSize: req.file.size,
+            mimeType: req.file.mimetype,
+            processed: false,
+            chatId: chatId
         });
 
         await document.save();
@@ -111,24 +121,49 @@ async function processDocumentAsync(documentId, buffer, mimeType) {
         const document = await Document.findById(documentId);
         if (!document) return;
 
+        console.log(`🚀 Processing document ${documentId}...`);
+
         // Process document (extract text, chunk, generate embeddings)
-        const chunks = await processDocument(buffer, mimeType);
+        const { chunks, text } = await processDocument(buffer, mimeType);
 
         // Store vectors in Pinecone
+        // Add chatId to vector metadata via pineconeService update (NEXT STEP for me) or assume service handles it if I pass it?
+        // Wait, pineconeService.upsertVectors takes (docId, docName, userId, chunks).
+        // I need to update pineconeService to take metadata or modify chunks to include metadata.
+        // For now, I'll update chunks here to include metadata, relying on my plan to update PineconeService next.
+        // Or I can modify chunks to have metadata inside them and PineconeService uses it.
+        
+        // Let's Run Intelligence
+        console.log('🧠 Running Legal Intelligence...');
+        const docType = await classifyDocument(text);
+        const summary = await generateSummary(text);
+
+        const enrichedChunks = chunks.map(c => ({
+            ...c,
+            metadata: { 
+                 chatId: document.chatId,
+                 docType: docType
+            }
+        }));
+
         await pineconeService.upsertVectors(
             document._id,
             document.originalName,
             document.user,
-            chunks
+            enrichedChunks
         );
 
-        // Update document with processing status (no longer storing chunks in MongoDB)
+        // Update document with processing status and intelligence
         document.chunkCount = chunks.length;
         document.processed = true;
         document.pineconeIndexed = true;
+        document.extractedText = text;
+        document.docType = docType;
+        document.summary = summary;
+        
         await document.save();
 
-        console.log(`✅ Document ${documentId} processed and indexed in Pinecone successfully`);
+        console.log(`✅ Document ${documentId} processed, classified as ${docType}, and indexed.`);
 
     } catch (error) {
         console.error(`❌ Error processing document ${documentId}:`, error);
