@@ -1,10 +1,14 @@
-import React, { useState, useMemo, createContext, useContext } from 'react';
+import React, { useState, useMemo, createContext, useContext, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { getDesignTokens } from './styles/theme';
+import { getDesignTokens, getThemedCssVariables } from './styles/theme';
+import { DEFAULT_THEME, PALETTES } from './styles/themeConfig';
 import { AuthProvider } from './context/AuthContext';
 import './App.css';
+
+// Components
+import ThemeSwitcher from './components/ThemeSwitcher';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -16,24 +20,51 @@ import VerifyEmail from './pages/VerifyEmail';
 import GoogleAuthSuccess from './pages/GoogleAuthSuccess';
 
 // Color Mode Context
-export const ColorModeContext = createContext({ toggleColorMode: () => {} });
+export const ColorModeContext = createContext({ 
+  setTheme: () => {},
+  mode: DEFAULT_THEME,
+  allThemes: [] 
+});
 
 export const useColorMode = () => useContext(ColorModeContext);
 
+const THEME_STORAGE_KEY = 'legalyze-theme';
+
 function App() {
-  const [mode, setMode] = useState('dark');
+  // Load theme from localStorage or default
+  const [activeTheme, setActiveTheme] = useState(() => {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    return (savedTheme && PALETTES[savedTheme]) ? savedTheme : DEFAULT_THEME;
+  });
+
+  // Inject CSS Variables for global styles (App.css compatibility)
+  useEffect(() => {
+    const cssVars = getThemedCssVariables(activeTheme);
+    const root = document.documentElement;
+    
+    // Apply variables to root
+    Object.keys(cssVars).forEach(key => {
+      root.style.setProperty(key, cssVars[key]);
+    });
+
+    // Save persistence
+    localStorage.setItem(THEME_STORAGE_KEY, activeTheme);
+  }, [activeTheme]);
 
   const colorMode = useMemo(
     () => ({
-      toggleColorMode: () => {
-        setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+      setTheme: (themeKey) => {
+        if (PALETTES[themeKey]) {
+          setActiveTheme(themeKey);
+        }
       },
-      mode, // Export current mode for components to use if needed
+      mode: activeTheme,
+      allThemes: Object.keys(PALETTES),
     }),
-    [mode],
+    [activeTheme],
   );
 
-  const theme = useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
+  const theme = useMemo(() => createTheme(getDesignTokens(activeTheme)), [activeTheme]);
 
   return (
     <AuthProvider>
@@ -50,6 +81,8 @@ function App() {
               <Route path="/verify-email/:token" element={<VerifyEmail />} />
               <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
             </Routes>
+            {/* Temporary Theme Switcher for Dev/Demo - Ideally this goes in a Settings page or Navbar */}
+            <ThemeSwitcher /> 
           </Router>
         </ThemeProvider>
       </ColorModeContext.Provider>

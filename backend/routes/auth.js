@@ -1,10 +1,22 @@
+console.log('Loading auth routes...');
 const express = require('express');
 const router = express.Router();
+console.log('  express router created');
+
 const { body, validationResult } = require('express-validator');
+console.log('  express-validator loaded');
+// const body = {}, validationResult = {}; // Dummy objects to prevent reference errors later if it loads
+
+
 const crypto = require('crypto');
 const User = require('../models/User');
+console.log('  User model loaded');
+
 const { protect, generateToken } = require('../middleware/auth');
+console.log('  auth middleware loaded');
+
 const sendEmail = require('../utils/sendEmail');
+console.log('  sendEmail loaded');
 
 // @route   POST /api/auth/signup
 // @desc    Register a new user
@@ -177,14 +189,13 @@ router.post(
             // Find user and verify credentials
             const user = await User.findByCredentials(email, password);
 
-            // TEMPORARILY DISABLED FOR TESTING
             // Check if user is verified
-            // if (!user.isVerified) {
-            //     return res.status(401).json({
-            //         success: false,
-            //         message: 'Please verify your email address to login'
-            //     });
-            // }
+            if (!user.isVerified) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Please verify your email address to login'
+                });
+            }
 
             // Update last login
             user.lastLogin = new Date();
@@ -320,7 +331,7 @@ router.get('/google/callback', (req, res, next) => {
     })(req, res, next);
 });
 
-module.exports = router;
+
 
 // @route   GET /api/auth/verify-email/:token
 // @desc    Verify email address
@@ -422,3 +433,5 @@ router.post('/resend-verification', async (req, res) => {
         });
     }
 });
+
+module.exports = router;

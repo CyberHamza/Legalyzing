@@ -8,6 +8,11 @@ const documentSchema = new mongoose.Schema(
             required: true,
             index: true
         },
+        caseId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Case',
+            index: true
+        },
         filename: {
             type: String,
             required: true
@@ -50,6 +55,27 @@ const documentSchema = new mongoose.Schema(
         
         // Intelligence Data
         docType: String,
+        
+        // Deep Extraction Metadata (LWOE)
+        metadata: {
+            parties: {
+                petitioner: String,
+                respondent: String
+            },
+            court: {
+                name: String,
+                judge: String,
+                jurisdiction: String
+            },
+            dates: {
+                documentDate: Date,
+                incidentDate: Date
+            },
+            statutes: [String], // e.g., ["302 PPC", "497 CrPC"]
+            outcome: String,
+            keyIssues: [String]
+        },
+
         summary: {
             facts: String,
             legalIssues: [String],

@@ -1,3 +1,4 @@
+console.log('--- SERVER STARTING ---');
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -50,7 +51,7 @@ app.use('/api/', limiter);
 // Stricter rate limiting for auth routes
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 10, // Limit each IP to 10 auth requests per windowMs
+    max: 100, // Limit each IP to 100 auth requests per windowMs
     message: {
         success: false,
         message: 'Too many authentication attempts, please try again later.'

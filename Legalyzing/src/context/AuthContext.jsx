@@ -17,15 +17,37 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Initialize auth state from localStorage
+    // Initialize auth state from localStorage with validation
     useEffect(() => {
-        const initAuth = () => {
+        const initAuth = async () => {
             const storedToken = localStorage.getItem('token');
             const storedUser = localStorage.getItem('user');
 
-            if (storedToken && storedUser) {
+            if (storedToken) {
+                // Optimistically set state for fast UI
                 setToken(storedToken);
-                setUser(JSON.parse(storedUser));
+                if (storedUser) {
+                    setUser(JSON.parse(storedUser));
+                }
+
+                // Verify with backend
+                try {
+                    const response = await authAPI.getCurrentUser();
+                    if (response.success) {
+                        setUser(response.user);
+                        // Optional: Update stored user with fresh data
+                        localStorage.setItem('user', JSON.stringify(response.user));
+                    } else {
+                        throw new Error('Verification failed');
+                    }
+                } catch (err) {
+                    console.error('Session validation failed:', err);
+                    // Invalid token - clear everything
+                    setToken(null);
+                    setUser(null);
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                }
             }
             setLoading(false);
         };

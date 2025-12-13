@@ -27,6 +27,7 @@ import { motion } from 'framer-motion';
 import { fadeIn, slideInFromBottom } from '../utils/animations';
 import { isValidEmail, isValidPassword } from '../utils/helpers';
 import { useColorMode } from '../App';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import { useAuth } from '../context/AuthContext';
 
 // Social Icons Components
@@ -155,7 +156,7 @@ const SignUp = () => {
             sx={{
                 minHeight: '100vh',
                 background: mode === 'dark' 
-                    ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)'
+                    ? 'linear-gradient(135deg, #222831 0%, #31363F 50%, #222831 100%)'
                     : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%)',
                 display: 'flex',
                 alignItems: 'center',
@@ -172,7 +173,7 @@ const SignUp = () => {
                     right: '10%',
                     width: '300px',
                     height: '300px',
-                    background: 'radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%)',
+                    background: mode === 'dark' ? 'radial-gradient(circle, rgba(118, 171, 174, 0.2) 0%, transparent 70%)' : 'radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%)',
                     borderRadius: '50%',
                     filter: 'blur(60px)',
                     animation: 'float 8s ease-in-out infinite'
@@ -192,9 +193,7 @@ const SignUp = () => {
                         >
                             <ArrowBack /> <Typography sx={{ ml: 1 }}>Back to Home</Typography>
                         </IconButton>
-                        <IconButton onClick={toggleColorMode} sx={{ color: 'text.secondary' }}>
-                            {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-                        </IconButton>
+                        <ThemeSwitcher variant="icon" />
                     </Box>
 
                     <Card className="glass" sx={{ p: 4 }}>
@@ -216,9 +215,8 @@ const SignUp = () => {
                                 Join Legalyzing to start generating legal documents
                             </Typography>
 
-                            {/* Social Sign Up Buttons */}
-                            <Grid container spacing={2} sx={{ mb: 3 }}>
-                                <Grid item xs={6}>
+                            <Grid container spacing={2} sx={{ mb: 3 }} justifyContent="center">
+                                <Grid item xs={12}>
                                     <Button
                                         fullWidth
                                         variant="outlined"
@@ -235,67 +233,7 @@ const SignUp = () => {
                                         <Box sx={{ mr: 1, display: 'flex' }}>
                                             <GoogleIcon />
                                         </Box>
-                                        Google
-                                    </Button>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <Button
-                                        fullWidth
-                                        variant="outlined"
-                                        onClick={() => handleSocialSignUp('Apple')}
-                                        sx={{
-                                            py: 1.5,
-                                            borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
-                                            '&:hover': {
-                                                borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.2)',
-                                                background: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
-                                            }
-                                        }}
-                                    >
-                                        <Box sx={{ mr: 1, display: 'flex' }}>
-                                            <AppleIcon />
-                                        </Box>
-                                        Apple
-                                    </Button>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <Button
-                                        fullWidth
-                                        variant="outlined"
-                                        onClick={() => handleSocialSignUp('Facebook')}
-                                        sx={{
-                                            py: 1.5,
-                                            borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
-                                            '&:hover': {
-                                                borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.2)',
-                                                background: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
-                                            }
-                                        }}
-                                    >
-                                        <Box sx={{ mr: 1, display: 'flex' }}>
-                                            <FacebookIcon />
-                                        </Box>
-                                        Facebook
-                                    </Button>
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <Button
-                                        fullWidth
-                                        variant="outlined"
-                                        onClick={() => handleSocialSignUp('LinkedIn')}
-                                        sx={{
-                                            py: 1.5,
-                                            borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)',
-                                            '&:hover': {
-                                                borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.2)',
-                                                background: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'
-                                            }
-                                        }}
-                                    >
-                                        <Box sx={{ mr: 1, display: 'flex' }}>
-                                            <LinkedInIcon />
-                                        </Box>
-                                        LinkedIn
+                                        Sign up with Google
                                     </Button>
                                 </Grid>
                             </Grid>
@@ -433,9 +371,9 @@ const SignUp = () => {
                                     sx={{
                                         mt: 3,
                                         py: 1.5,
-                                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                        background: mode === 'dark' ? '#76ABAE' : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                                         '&:hover': {
-                                            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
+                                            background: mode === 'dark' ? '#5F8A8D' : 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
                                         }
                                     }}
                                 >

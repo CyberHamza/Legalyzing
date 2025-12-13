@@ -110,11 +110,12 @@ export const authAPI = {
 // Chat API endpoints
 export const chatAPI = {
     // Send message and get AI response
-    sendMessage: async (message, conversationId = null, documentIds = []) => {
+    sendMessage: async (message, conversationId = null, documentIds = [], files = []) => {
         const response = await api.post('/chat', {
             message,
             conversationId,
-            documentIds
+            documentIds,
+            files
         });
         return response.data;
     },

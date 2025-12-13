@@ -1,15 +1,36 @@
 const { Pinecone } = require('@pinecone-database/pinecone');
 
-// Initialize Pinecone client
-const pinecone = new Pinecone({
-    apiKey: process.env.PINECONE_API_KEY
-});
+// Lazy initialization of Pinecone client
+let pinecone = null;
+let isInitialized = false;
+
+/**
+ * Initialize Pinecone client (lazy loading)
+ */
+function initializePinecone() {
+    if (isInitialized && pinecone) {
+        return pinecone;
+    }
+    
+    const apiKey = process.env.PINECONE_API_KEY?.trim();
+    if (!apiKey) {
+        throw new Error('PINECONE_API_KEY is not configured. Please set it in your .env file.');
+    }
+    
+    pinecone = new Pinecone({
+        apiKey: apiKey
+    });
+    isInitialized = true;
+    return pinecone;
+}
 
 /**
  * Get the Pinecone index instance
  */
 function getIndex() {
-    return pinecone.index(process.env.PINECONE_INDEX_NAME);
+    const client = initializePinecone();
+    const indexName = process.env.PINECONE_INDEX_NAME?.trim() || 'legal-documents';
+    return client.index(indexName);
 }
 
 /**

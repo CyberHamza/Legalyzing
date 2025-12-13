@@ -5,9 +5,7 @@ const { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } = re
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const s3Client = require('../config/s3');
 const Document = require('../models/Document');
-const { protect } = require('../middleware/auth');
-const { processDocument } = require('../utils/documentProcessor');
-const openai = require('../config/openai');
+
 const { protect } = require('../middleware/auth');
 const { processDocument } = require('../utils/documentProcessor');
 const { classifyDocument, generateSummary } = require('../services/legalIntelligence');
@@ -116,66 +114,28 @@ router.post('/upload', protect, upload.single('document'), async (req, res) => {
 const pineconeService = require('../services/pineconeService');
 
 // Async function to process document
+// Async function to process document using LWOE Orchestrator
 async function processDocumentAsync(documentId, buffer, mimeType) {
+    // Import dynamically to avoid circular dependencies if any
+    const { processUpload } = require('../services/workflowOrchestrator');
+    const Document = require('../models/Document'); // Re-require to ensure availablity
+
     try {
         const document = await Document.findById(documentId);
         if (!document) return;
 
-        console.log(`🚀 Processing document ${documentId}...`);
-
-        // Process document (extract text, chunk, generate embeddings)
-        const { chunks, text } = await processDocument(buffer, mimeType);
-
-        // Store vectors in Pinecone
-        // Add chatId to vector metadata via pineconeService update (NEXT STEP for me) or assume service handles it if I pass it?
-        // Wait, pineconeService.upsertVectors takes (docId, docName, userId, chunks).
-        // I need to update pineconeService to take metadata or modify chunks to include metadata.
-        // For now, I'll update chunks here to include metadata, relying on my plan to update PineconeService next.
-        // Or I can modify chunks to have metadata inside them and PineconeService uses it.
-        
-        // Let's Run Intelligence
-        console.log('🧠 Running Legal Intelligence...');
-        const docType = await classifyDocument(text);
-        const summary = await generateSummary(text);
-
-        const enrichedChunks = chunks.map(c => ({
-            ...c,
-            metadata: { 
-                 chatId: document.chatId,
-                 docType: docType
-            }
-        }));
-
-        await pineconeService.upsertVectors(
-            document._id,
-            document.originalName,
-            document.user,
-            enrichedChunks
+        // Delegate to Orchestrator
+        await processUpload(
+            documentId, 
+            buffer, 
+            mimeType, 
+            document.user, 
+            document.chatId
         );
-
-        // Update document with processing status and intelligence
-        document.chunkCount = chunks.length;
-        document.processed = true;
-        document.pineconeIndexed = true;
-        document.extractedText = text;
-        document.docType = docType;
-        document.summary = summary;
-        
-        await document.save();
-
-        console.log(`✅ Document ${documentId} processed, classified as ${docType}, and indexed.`);
 
     } catch (error) {
         console.error(`❌ Error processing document ${documentId}:`, error);
-        
-        // Update document with error
-        const document = await Document.findById(documentId);
-        if (document) {
-            document.processingError = error.message;
-            document.processed = false;
-            document.pineconeIndexed = false;
-            await document.save();
-        }
+        // Error handling is also done in orchestrator, but safety net here
     }
 }
 

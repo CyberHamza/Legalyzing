@@ -24,6 +24,15 @@ const sendEmail = async (options) => {
         html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">${htmlMessage}</div>`,
     };
 
+    // In development or if SMTP is failing, log the message to console for testing
+    if (process.env.NODE_ENV === 'development' || !process.env.SMTP_HOST) {
+        console.log('================ EMAIL PREVIEW ================');
+        console.log(`To: ${options.email}`);
+        console.log(`Subject: ${options.subject}`);
+        console.log(`Message: ${options.message}`);
+        console.log('===============================================');
+    }
+
     // Send email
     const info = await transporter.sendMail(message);
 

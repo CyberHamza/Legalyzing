@@ -2,9 +2,13 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
+        console.log('Attempting to connect to MongoDB...', process.env.MONGODB_URI ? '(URI is defined)' : '(URI IS MISSING!)');
+        
         const conn = await mongoose.connect(process.env.MONGODB_URI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of hanging
+            socketTimeoutMS: 45000,
         });
 
         console.log(`✅ MongoDB Connected: ${conn.connection.host}`);

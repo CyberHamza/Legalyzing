@@ -90,7 +90,7 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
         if (!documentText || documentText.trim().length === 0) {
             return res.status(400).json({
                 success: false,
-                message: 'Could not extract text from document'
+                message: 'Could not extract text. The document might be a scanned image or empty. Please upload a machine-readable PDF or Word document.'
             });
         }
 

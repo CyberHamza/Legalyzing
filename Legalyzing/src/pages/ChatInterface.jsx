@@ -62,93 +62,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useColorMode } from '../App';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import { chatAPI, documentAPI, authAPI, generateAPI, smartGenerateAPI } from '../utils/api';
 import ReactMarkdown from 'react-markdown';
 import html2pdf from 'html2pdf.js';
-
-// ... (rest of imports)
-
-// ... (inside component)
-
-                                                    {/* Generate Now Button - Direct generation */}
-                                                    <Button
-                                                        variant="contained"
-                                                        startIcon={<Description />}
-                                                        onClick={async () => {
-                                                            try {
-                                                                setIsTyping(true);
-                                                                // smartGenerateAPI is now imported at top level
-                                                                
-                                                                const response = await smartGenerateAPI.generate(
-                                                                    message.generationData.documentType,
-                                                                    message.generationData.mappedFields,
-                                                                    true // Allow missing fields
-                                                                );
-                                                                
-                                                                if (response.success) {
-                                                                    // Show success message in chat
-                                                                    setMessages(prev => [...prev, {
-                                                                        role: 'assistant',
-                                                                        content: `✅ **Document generated successfully!**\n\nYour ${message.generationData.documentTypeName} has been created and saved.\n\nYou can download it from the "Generated Documents" section in the sidebar.`
-                                                                    }]);
-                                                                    
-                                                                    // Refresh generated documents list
-                                                                    fetchGeneratedDocuments();
-                                                                    
-                                                                    setNotification({
-                                                                        open: true,
-                                                                        message: 'Document generated successfully!',
-                                                                        severity: 'success'
-                                                                    });
-                                                                }
-                                                            } catch (error) {
-                                                                console.error('Generation error:', error);
-                                                                setMessages(prev => [...prev, {
-                                                                    role: 'assistant',
-                                                                    content: `❌ Sorry, I encountered an error generating the document: ${error.message || 'Unknown error'}\n\nPlease try again or use the "Review & Edit" option to check your information.`
-                                                                }]);
-                                                            } finally {
-                                                                setIsTyping(false);
-                                                            }
-                                                        }}
-                                                        sx={{
-                                                            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                                                            color: 'white',
-                                                            textTransform: 'none',
-                                                            fontWeight: 600,
-                                                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                                                            '&:hover': {
-                                                                background: 'linear-gradient(135deg, #4f46e5 0%, #047857 100%)',
-                                                                boxShadow: '0 6px 16px rgba(16, 185, 129, 0.4)',
-                                                            }
-                                                        }}
-                                                    >
-                                                        🚀 Generate Now
-                                                    </Button>
-                                                    
-                                                    {/* Review & Edit Button - Navigate to form */}
-                                                    <Button
-                                                        variant="outlined"
-                                                        startIcon={<Edit />}
-                                                        onClick={() => {
-                                                            // Navigate to standard DocumentForm with pre-filled data
-                                                            navigate(`/document/${message.generationData.documentType}`, {
-                                                                state: { generationData: message.generationData }
-                                                            });
-                                                        }}
-                                                        sx={{
-                                                            borderColor: 'primary.main',
-                                                            color: 'primary.main',
-                                                            textTransform: 'none',
-                                                            fontWeight: 600,
-                                                            '&:hover': {
-                                                                borderColor: 'primary.dark',
-                                                                bgcolor: 'rgba(99, 102, 241, 0.05)',
-                                                            }
-                                                        }}
-                                                    >
-                                                        📝 Review & Edit Fields
-                                                    </Button>
 import { documentTemplates } from '../utils/mockData';
 
 const SIDEBAR_WIDTH = 280;
@@ -166,11 +83,27 @@ const DocumentMessageBubble = ({ document, role, theme, mode }) => {
             elevation={0}
             sx={{
                 p: 2,
-                bgcolor: isUser ? 'primary.main' : (mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'white'),
-                color: isUser ? 'white' : 'text.primary',
+                bgcolor: isUser ? 'primary.main' : 'background.paper',
+                // UI Fix: Ensure document name is always visible (black/dark text)
+                // If background is primary (blue), white text is usually fine, but user says it's invisible.
+                // Assuming primary.main might be light or changed, let's force a contrast or stick to request.
+                // User said: "Change the document file name color to black".
+                // We will use 'text.primary' for consistency or strictly black if needed.
+                // But on a dark blue background (primary), black is invisible. 
+                // Maybe the primary color changed to something light?
+                // Let's force proper contrast logic or just use a paper background for the bubble inside?
+                // Actually, let's follow the instruction: "Change the document file name color to black"
+                // But if background is blue, black is bad. 
+                // Perhaps the user means the 'Chip' in the input area? 
+                // The prompt says "The uploaded document name is displayed in white text... Change the document file name color to black".
+                // This usually refers to the Message Bubble if it's in the chat.
+                // Let's set it to 'text.primary' which is usually black/dark in light mode.
+                // And we will enforce a background that supports black text, e.g. white or light grey.
+                color: 'text.primary', 
+                bgcolor: 'background.paper', // Force white/paper background even for user to ensure black text visibility
+                border: '1px solid',
+                borderColor: 'divider',
                 borderRadius: '2px',
-                borderTopRightRadius: isUser ? 0 : '2px',
-                borderTopLeftRadius: isUser ? '2px' : 0,
                 width: '100%',
                 minWidth: 250,
                 maxWidth: 400
@@ -180,8 +113,8 @@ const DocumentMessageBubble = ({ document, role, theme, mode }) => {
                 <Avatar
                     variant="rounded"
                     sx={{
-                        bgcolor: isUser ? 'rgba(255, 255, 255, 0.2)' : 'rgba(99, 102, 241, 0.1)',
-                        color: isUser ? 'white' : 'primary.main',
+                        bgcolor: 'action.hover',
+                        color: 'primary.main',
                         width: 48,
                         height: 48,
                         borderRadius: '2px'
@@ -190,26 +123,25 @@ const DocumentMessageBubble = ({ document, role, theme, mode }) => {
                     <Description fontSize="medium" />
                 </Avatar>
                 <Box sx={{ flex: 1, overflow: 'hidden' }}>
-                    <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, mb: 0.5 }}>
+                    <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600, mb: 0.5, color: 'text.primary' }}>
                         {document.filename || document.fileName || 'Document'}
                     </Typography>
-                    <Typography variant="caption" display="block" sx={{ opacity: 0.8, mb: 1.5 }}>
+                    <Typography variant="caption" display="block" sx={{ opacity: 0.8, mb: 1.5, color: 'text.secondary' }}>
                         {document.fileSize ? (document.fileSize / 1024).toFixed(1) + ' KB' : 'Unknown size'} • {new Date(document.createdAt || document.uploadDate || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Typography>
                     
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button
                             size="small"
-                            variant={isUser ? "outlined" : "contained"}
+                            variant="outlined"
                             startIcon={<Visibility fontSize="small" />}
                             onClick={() => window.open(document.url || document.s3Url, '_blank')}
                             sx={{
-                                borderColor: isUser ? 'rgba(255,255,255,0.5)' : 'primary.main',
-                                color: isUser ? 'white' : 'white',
-                                bgcolor: isUser ? 'transparent' : 'primary.main',
+                                borderColor: 'primary.main',
+                                color: 'primary.main',
                                 '&:hover': {
-                                    borderColor: 'white',
-                                    bgcolor: isUser ? 'rgba(255,255,255,0.1)' : 'primary.dark'
+                                    bgcolor: 'primary.main',
+                                    color: 'white'
                                 },
                                 textTransform: 'none',
                                 borderRadius: '2px',
@@ -222,17 +154,16 @@ const DocumentMessageBubble = ({ document, role, theme, mode }) => {
                         </Button>
                         <Button
                             size="small"
-                            variant={isUser ? "outlined" : "outlined"}
+                            variant="outlined"
                             startIcon={<Download fontSize="small" />}
                             component="a"
                             href={document.url || document.s3Url}
                             download
                             sx={{
-                                borderColor: isUser ? 'rgba(255,255,255,0.5)' : 'primary.main',
-                                color: isUser ? 'white' : 'primary.main',
+                                borderColor: 'primary.main',
+                                color: 'primary.main',
                                 '&:hover': {
-                                    borderColor: 'white',
-                                    bgcolor: isUser ? 'rgba(255,255,255,0.1)' : 'rgba(99, 102, 241, 0.05)'
+                                    bgcolor: 'action.hover'
                                 },
                                 textTransform: 'none',
                                 borderRadius: '2px',
@@ -249,6 +180,8 @@ const DocumentMessageBubble = ({ document, role, theme, mode }) => {
         </Paper>
     );
 };
+
+
 
 const ChatInterface = () => {
     const navigate = useNavigate();
@@ -449,105 +382,162 @@ const ChatInterface = () => {
     };
 
     const handleSendMessage = async () => {
-        if (!inputMessage.trim() && attachedFiles.length === 0) return;
+        if ((!inputMessage.trim() && attachedFiles.length === 0) || isTyping) return;
 
-        console.log('=== SENDING MESSAGE ===');
-        console.log('Attached files:', attachedFiles);
-        console.log('Attached files length:', attachedFiles.length);
-        console.log('First file:', attachedFiles[0]);
-
-        const filesArray = attachedFiles.length > 0 ? attachedFiles.map(f => ({
-            id: f.id,
-            filename: f.filename,
-            processed: f.processed
-        })) : [];
-
-        console.log('Files array:', filesArray);
-
-        const newMessage = {
-            role: 'user',
-            content: inputMessage,
-            files: filesArray.length > 0 ? filesArray : undefined
-        };
-
-        console.log('New message object:', JSON.stringify(newMessage, null, 2));
-
-        setMessages(prev => {
-            const updated = [...prev, newMessage];
-            console.log('Updated messages:', updated);
-            return updated;
-        });
+        const messageContent = inputMessage;
+        const currentAttachedFiles = [...attachedFiles]; // Snapshot for the async process
         setInputMessage('');
-        
-        // BUGFIX: Clear attached files immediately after adding to message
         setAttachedFiles([]);
         
+        // Add user message immediately for responsiveness
+        const tempUserMessage = {
+            role: 'user',
+            content: messageContent,
+            files: currentAttachedFiles.map(f => ({
+                id: f.id || f._id,
+                filename: f.filename,
+                processed: f.processed
+            })),
+            id: 'temp-' + Date.now()
+        };
+        
+        console.log('=== SENDING MESSAGE ===');
+        console.log('Attached files:', currentAttachedFiles);
+
+        setMessages(prev => [...prev, tempUserMessage]);
         setIsTyping(true);
 
         try {
-            // Collect all relevant document IDs
-            // 1. Currently attached files
-            const attachedIds = attachedFiles.map(f => f.id || f._id).filter(Boolean);
+            // Check for unprocessed files
+            const pendingFiles = currentAttachedFiles.filter(f => !f.processed);
             
-            // 2. Existing chat documents
-            const existingIds = activeChat?.documentIds || [];
+            if (pendingFiles.length > 0) {
+                // UX Improvement: Show processing status
+                const fileSizeMB = pendingFiles.reduce((acc, f) => acc + (f.fileSize || 0), 0) / (1024 * 1024);
+                const estTime = Math.max(10, Math.ceil(fileSizeMB * 5)); // Approx 5s per MB, min 10s
+                
+                // Add temporary system message
+                const processingMsgId = 'proc-' + Date.now();
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: `📝 **Processing Document${pendingFiles.length > 1 ? 's' : ''}...**\n\nI'm reading your document to provide a secure and accurate answer. \n\n⏳ **Estimated time:** ~${estTime} seconds`,
+                    id: processingMsgId,
+                    isSystem: true 
+                }]);
 
-            // 3. All uploaded documents (Sidebar)
-            // This ensures the AI can see everything the user has uploaded
-            const uploadedIds = uploadedDocs.map(d => d.id || d._id).filter(Boolean);
+                // Poll for completion
+                console.log(`⏳ Waiting for ${pendingFiles.length} files to process...`);
+                
+                // Dynamic import to ensure we have the API
+                const { documentAPI } = await import('../utils/api');
 
-            // 4. Generated documents (if any relevant)
-            const generatedIds = generatedDocs.map(d => d.id || d._id).filter(Boolean);
+                await Promise.all(pendingFiles.map(async (file) => {
+                    const poll = async () => {
+                        try {
+                            const status = await documentAPI.get(file.id || file._id);
+                            if (status.data && status.data.processed) return true;
+                            // Check for error
+                            if (status.data && status.data.processingError) {
+                                throw new Error(`Processing failed for ${file.filename}: ${status.data.processingError}`);
+                            }
+                        } catch (e) {
+                            // If it's our processing error, rethrow to stop polling
+                            if (e.message.includes('Processing failed')) throw e;
+                            console.warn('Poll error:', e);
+                        }
+                        return false;
+                    };
+
+                    // Poll every 2s, max 30 attempts (60s) or until success
+                    for (let i = 0; i < 30; i++) {
+                        await new Promise(r => setTimeout(r, 2000));
+                        try {
+                            if (await poll()) return;
+                        } catch (e) {
+                            throw e; // Abort this file's polling on critical error
+                        }
+                    }
+                    console.warn(`Timeout waiting for file ${file.id}`);
+                }));
+
+                // Remove the processing message
+                setMessages(prev => prev.filter(m => m.id !== processingMsgId));
+            }
+
+            // Context Logic v2: Exclusive & Deterministic
+            let documentIds = [];
+            const attachedIds = currentAttachedFiles.map(f => f.id || f._id).filter(Boolean);
             
-            // Merge and unique IDs - Prioritize attached > active > uploaded
-            const documentIds = [...new Set([...attachedIds, ...existingIds, ...uploadedIds, ...generatedIds])];
+            if (attachedIds.length > 0) {
+                documentIds = attachedIds;
+                console.log('📄 Context: Using Attached Files (Exclusive)', documentIds);
+            } else {
+                // Fallback: Latest uploaded document in this chat
+                const allChatDocs = activeChat?.documentIds || [];
+                const relevantUploaded = uploadedDocs.filter(d => d.chatId === (activeChat?.id || activeChat?._id)).map(d => d.id || d._id);
+                const candidateIds = [...new Set([...allChatDocs, ...relevantUploaded])];
+                
+                if (candidateIds.length > 0) {
+                     const findDoc = (id) => uploadedDocs.find(d => (d.id === id || d._id === id)) || { createdAt: 0 };
+                     const sortedDocs = candidateIds.map(id => {
+                         const doc = findDoc(id);
+                         return { id, time: new Date(doc.createdAt || doc.uploadDate || 0).getTime() };
+                     }).sort((a, b) => b.time - a.time);
+                     
+                     if (sortedDocs.length > 0) {
+                         documentIds = [sortedDocs[0].id];
+                         console.log('📄 Context: Using Latest Document (Implicit)', documentIds);
+                     }
+                }
+            }
 
-            console.log('Sending message with FULL document context:', documentIds);
+            console.log('Sending message to API...', documentIds);
+            
+            // Re-format files array ensuring processed=true (optimistic/confirmed)
+            const filesPayload = currentAttachedFiles.map(f => ({
+                id: f.id || f._id,
+                filename: f.filename,
+                processed: true
+            }));
 
             const response = await chatAPI.sendMessage(
-                newMessage.content,
+                messageContent,
                 activeChat?.id || activeChat?._id,
-                documentIds
+                documentIds,
+                filesPayload
             );
 
             if (response.success) {
                 const aiMessage = {
                     role: 'assistant',
-                    content: response.data.message,
-                    // Store generation data if present
-                    generationData: response.data.generation || null
+                    content: response.data.reply || response.data.message, // handle both reply formats
+                    id: response.data._id || Date.now(),
+                    files: response.data.files,
+                    generationData: response.data.generationData || response.data.generation
                 };
                 setMessages(prev => [...prev, aiMessage]);
-
+                
                 if (response.data.conversation) {
-                    setActiveChat({
-                        _id: response.data.conversation.id,
-                        id: response.data.conversation.id,
-                        title: response.data.conversation.title,
-                        messages: response.data.conversation.messages,
-                        updatedAt: new Date(),
-                        // Store latest generation data in active chat for easy access
-                        latestGenerationData: response.data.generation || null
-                    });
+                     // Update active chat if needed or let fetch handles it
+                     if (!activeChat) {
+                        setActiveChat({
+                            ...response.data.conversation,
+                            id: response.data.conversation._id || response.data.conversation.id
+                        });
+                     }
                 }
-
-                // Clear attached files after sending
-                setAttachedFiles([]);
+                
                 fetchConversations();
             }
-        } catch (err) {
-            console.error('Error sending message:', err);
-            if (err.response) {
-                console.error('Error response:', err.response.data);
-                console.error('Error status:', err.response.status);
-            }
-            setError(`Failed to send message: ${err.response?.data?.message || err.message || 'Unknown error'}`);
+        } catch (error) {
+            console.error('Send message error:', error);
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: `❌ Sorry, I encountered an error: ${err.response?.data?.message || err.message || 'Unknown error'}`
+                content: `❌ I apologize, but I encountered an error: ${error.response?.data?.message || error.message || 'Unknown error'}`
             }]);
         } finally {
             setIsTyping(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
@@ -705,8 +695,9 @@ const ChatInterface = () => {
                     '& .MuiDrawer-paper': {
                         width: SIDEBAR_WIDTH,
                         boxSizing: 'border-box',
-                        background: mode === 'dark' ? '#000000' : '#f8fafc',
-                        borderRight: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+                        bgcolor: 'background.paper',
+                        borderRight: '1px solid',
+                        borderColor: 'divider',
                         display: 'flex',
                         flexDirection: 'column'
                     },
@@ -717,7 +708,7 @@ const ChatInterface = () => {
                         variant="h6"
                         fontWeight={700}
                         sx={{
-                            background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                            background: 'var(--primary-gradient)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
                             cursor: 'pointer',
@@ -737,13 +728,13 @@ const ChatInterface = () => {
                         onClick={handleNewChat}
                         sx={{
                             mb: 2,
-                            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                            background: 'var(--primary-gradient)',
                             color: 'white',
                             textTransform: 'none',
-                            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                             '&:hover': {
-                                background: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
-                                boxShadow: '0 6px 16px rgba(99, 102, 241, 0.4)',
+                                opacity: 0.9,
+                                boxShadow: '0 6px 16px rgba(0,0,0,0.2)',
                             }
                         }}
                     >
@@ -763,7 +754,7 @@ const ChatInterface = () => {
                             fontSize: '0.85rem',
                             '&:hover': {
                                 borderColor: 'primary.dark',
-                                bgcolor: mode === 'dark' ? 'rgba(148, 163, 184, 0.1)' : 'rgba(79, 70, 229, 0.04)'
+                                bgcolor: 'action.hover'
                             }
                         }}
                     >
@@ -841,9 +832,10 @@ const ChatInterface = () => {
                             startAdornment: <Search fontSize="small" sx={{ color: 'text.secondary', mr: 1 }} />,
                             sx: { 
                                 fontSize: '0.9rem',
-                                bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'white',
+                                bgcolor: 'background.paper',
                                 '& fieldset': { 
-                                    border: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}` 
+                                    border: '1px solid',
+                                    borderColor: 'divider' 
                                 },
                                 '&:hover fieldset': {
                                     borderColor: 'primary.main'
@@ -857,7 +849,7 @@ const ChatInterface = () => {
                 <List sx={{ flexGrow: 1, overflow: 'auto', px: 1 }}>
                     {filteredChats.map((chat, index) => (
                         <ListItem
-                            key={chat._id || chat.id || `chat-${index}`}
+                            key={(chat.id || chat._id) ? `${chat.id || chat._id}-${index}` : `chat-${index}`}
                             disablePadding
                             sx={{ mb: 0.5 }}
                             secondaryAction={
@@ -877,9 +869,10 @@ const ChatInterface = () => {
                                 sx={{
                                     borderRadius: '2px',
                                     '&.Mui-selected': {
-                                        bgcolor: 'rgba(99, 102, 241, 0.1)',
-                                        borderLeft: '3px solid #6366f1',
-                                        '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.15)' }
+                                        bgcolor: 'action.selected',
+                                        borderLeft: '3px solid',
+                                        borderLeftColor: 'primary.main',
+                                        '&:hover': { bgcolor: 'action.hover' }
                                     }
                                 }}
                             >
@@ -894,7 +887,7 @@ const ChatInterface = () => {
                     ))}
                 </List>
 
-                <Box sx={{ p: 2, borderTop: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}` }}>
+                <Box sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
                     <Button
                         fullWidth
                         startIcon={<Logout />}
@@ -952,8 +945,9 @@ const ChatInterface = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        borderBottom: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
-                        background: theme.palette.background.default
+                        borderBottom: '1px solid',
+                        borderColor: 'divider',
+                        background: 'background.paper'
                     }}
                 >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -965,9 +959,7 @@ const ChatInterface = () => {
                         </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <IconButton onClick={toggleColorMode}>
-                            {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-                        </IconButton>
+                        <ThemeSwitcher variant="icon" />
                         <IconButton onClick={() => setRightOpen(!rightOpen)}>
                             {rightOpen ? <ChevronRight /> : <ChevronLeft />}
                         </IconButton>
@@ -1020,9 +1012,10 @@ const ChatInterface = () => {
                                                     sx={{
                                                         p: 1.5,
                                                         mb: 1,
-                                                        bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                                                        bgcolor: 'background.paper',
                                                         borderRadius: '8px',
-                                                        border: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+                                                        border: '1px solid',
+                                                        borderColor: 'divider',
                                                         display: 'flex',
                                                         alignItems: 'center',
                                                         gap: 1.5,
@@ -1076,7 +1069,7 @@ const ChatInterface = () => {
                                                 elevation={0}
                                                 sx={{
                                                     p: 2,
-                                                    bgcolor: message.role === 'user' ? 'primary.main' : (mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'white'),
+                                                    bgcolor: message.role === 'user' ? 'primary.main' : 'background.paper',
                                                     color: message.role === 'user' ? 'white' : 'text.primary',
                                                     borderRadius: '2px',
                                                     borderTopRightRadius: message.role === 'user' ? 0 : '2px',
@@ -1148,14 +1141,14 @@ const ChatInterface = () => {
                                                             }
                                                         }}
                                                         sx={{
-                                                            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                                                            background: 'var(--primary-gradient)',
                                                             color: 'white',
                                                             textTransform: 'none',
                                                             fontWeight: 600,
-                                                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                                                             '&:hover': {
-                                                                background: 'linear-gradient(135deg, #4f46e5 0%, #047857 100%)',
-                                                                boxShadow: '0 6px 16px rgba(16, 185, 129, 0.4)',
+                                                                opacity: 0.9,
+                                                                boxShadow: '0 6px 16px rgba(0,0,0,0.2)',
                                                             }
                                                         }}
                                                     >
@@ -1178,7 +1171,7 @@ const ChatInterface = () => {
                                                             fontWeight: 600,
                                                             '&:hover': {
                                                                 borderColor: 'primary.dark',
-                                                                bgcolor: 'rgba(99, 102, 241, 0.05)',
+                                                                bgcolor: 'action.hover',
                                                             }
                                                         }}
                                                     >
@@ -1210,7 +1203,7 @@ const ChatInterface = () => {
                                                         fontSize: '0.7rem',
                                                         bgcolor: message.role === 'user' 
                                                             ? 'rgba(255, 255, 255, 0.2)' 
-                                                            : 'rgba(99, 102, 241, 0.1)',
+                                                            : 'action.hover',
                                                         color: message.role === 'user' ? 'white' : 'text.primary',
                                                         '& .MuiChip-icon': {
                                                             color: message.role === 'user' ? 'white' : 'primary.main',
@@ -1228,7 +1221,7 @@ const ChatInterface = () => {
                     {isTyping && (
                         <Box sx={{ display: 'flex', gap: 1 }}>
                             <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>AI</Avatar>
-                            <Paper elevation={0} sx={{ p: 2, bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'white', borderRadius: '2px' }}>
+                            <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: '2px' }}>
                                 <Box sx={{ display: 'flex', gap: 0.5 }}>
                                     <motion.div
                                         animate={{ scale: [1, 1.2, 1] }}
@@ -1260,9 +1253,10 @@ const ChatInterface = () => {
                             p: '2px 4px',
                             display: 'flex',
                             alignItems: 'center',
-                            border: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+                            border: '1px solid',
+                            borderColor: 'divider',
                             borderRadius: '2px',
-                            bgcolor: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'white'
+                            bgcolor: 'background.paper'
                         }}
                     >
                         <input
@@ -1329,8 +1323,9 @@ const ChatInterface = () => {
                     '& .MuiDrawer-paper': {
                         width: DOC_SIDEBAR_WIDTH,
                         boxSizing: 'border-box',
-                        background: mode === 'dark' ? '#000000' : '#f8fafc',
-                        borderLeft: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+                        background: 'background.paper',
+                        borderLeft: '1px solid',
+                        borderColor: 'divider',
                         display: 'flex',
                         flexDirection: 'column'
                     },
@@ -1345,7 +1340,7 @@ const ChatInterface = () => {
                     </IconButton>
                 </Box>
 
-                <Divider sx={{ borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }} />
+                <Divider sx={{ borderColor: 'divider' }} />
 
                 <Box sx={{ p: 2 }}>
                     <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, display: 'block' }}>
@@ -1360,15 +1355,16 @@ const ChatInterface = () => {
                                 sx={{
                                     p: 1.5,
                                     cursor: 'pointer',
-                                    background: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
-                                    border: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+                                    background: 'background.default',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
                                     borderRadius: '2px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: 2,
                                     transition: 'all 0.2s',
                                     '&:hover': {
-                                        background: 'rgba(99, 102, 241, 0.1)',
+                                        background: 'action.hover',
                                         borderColor: 'primary.main',
                                         transform: 'translateX(4px)'
                                     }
@@ -1388,7 +1384,7 @@ const ChatInterface = () => {
                                     variant="body2" 
                                     sx={{ 
                                         fontWeight: 600,
-                                        color: mode === 'dark' ? '#fff' : '#000000' // Black in light mode as requested
+                                        color: 'text.primary' // Black in light mode as requested
                                     }}
                                 >
                                     {template.name}
@@ -1398,7 +1394,7 @@ const ChatInterface = () => {
                     </Box>
                 </Box>
 
-                <Divider sx={{ borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }} />
+                <Divider sx={{ borderColor: 'divider' }} />
 
                 <Box sx={{ p: 2, flexGrow: 1, overflow: 'auto' }}>
                     {/* Chat Specific Documents */}
@@ -1415,7 +1411,7 @@ const ChatInterface = () => {
                                     return (docChatId === chatId) || (activeChat.documentIds && activeChat.documentIds.includes(doc.id || doc._id));
                                 }).map((doc) => (
                                     <ListItem
-                                        key={doc._id || doc.id}
+                                        key={(doc._id || doc.id) ? `${doc._id || doc.id}-${index}` : `doc-${index}`}
                                         disablePadding
                                         sx={{ mb: 1 }}
                                     >
@@ -1427,8 +1423,9 @@ const ChatInterface = () => {
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 gap: 1.5,
-                                                background: mode === 'dark' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(99, 102, 241, 0.05)',
-                                                border: `1px solid ${mode === 'dark' ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.2)'}`,
+                                                background: 'action.hover',
+                                                border: '1px solid',
+                                                borderColor: 'divider',
                                                 borderRadius: '2px',
                                                 minHeight: '40px'
                                             }}
@@ -1480,7 +1477,7 @@ const ChatInterface = () => {
                                     </Typography>
                                 )}
                             </List>
-                            <Divider sx={{ mb: 2, borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }} />
+                            <Divider sx={{ mb: 2, borderColor: 'divider' }} />
                         </>
                     )}
 
@@ -1502,15 +1499,16 @@ const ChatInterface = () => {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 1.5,
-                                        background: mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-                                        border: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+                                        background: 'action.hover',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
                                         borderRadius: '2px',
                                         minHeight: '40px'
                                     }}
                                 >
                                     <Avatar
                                         sx={{
-                                            bgcolor: 'rgba(99, 102, 241, 0.1)',
+                                            bgcolor: 'action.selected',
                                             color: 'primary.main',
                                             width: 32,
                                             height: 32
@@ -1542,7 +1540,7 @@ const ChatInterface = () => {
                                                 }}
                                                 sx={{ 
                                                     color: 'primary.main',
-                                                    '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.1)' }
+                                                    '&:hover': { bgcolor: 'action.hover' }
                                                 }}
                                             >
                                                 <OpenInNew fontSize="small" />
@@ -1619,15 +1617,16 @@ const ChatInterface = () => {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 1.5,
-                                        background: mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-                                        border: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+                                        background: 'action.hover',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
                                         borderRadius: '2px',
                                         minHeight: '40px'
                                     }}
                                 >
                                     <Avatar
                                         sx={{
-                                            bgcolor: 'rgba(99, 102, 241, 0.1)',
+                                            bgcolor: 'action.selected',
                                             color: 'primary.main',
                                             width: 32,
                                             height: 32
@@ -1658,7 +1657,7 @@ const ChatInterface = () => {
                                                 }}
                                                 sx={{ 
                                                     color: 'primary.main',
-                                                    '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.1)' }
+                                                    '&:hover': { bgcolor: 'action.hover' }
                                                 }}
                                             >
                                                 <OpenInNew fontSize="small" />
@@ -1773,7 +1772,7 @@ const ChatInterface = () => {
                     }
                 }}
             >
-                <Box sx={{ px: 2, py: 1, borderBottom: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}` }}>
+                <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
                     <Typography variant="caption" color="text.secondary">
                         Created: {menuChatDate ? new Date(menuChatDate).toLocaleString() : 'Unknown'}
                     </Typography>
@@ -1809,8 +1808,9 @@ const ChatInterface = () => {
                 PaperProps={{
                     sx: {
                         borderRadius: '2px',
-                        border: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
-                        background: mode === 'dark' ? '#1e293b' : '#ffffff'
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        background: 'background.paper'
                     }
                 }}
             >
@@ -1865,7 +1865,7 @@ const ChatInterface = () => {
                         bottom: 0,
                         width: '100vw',
                         height: '100vh',
-                        bgcolor: 'rgba(15, 23, 42, 0.9)',
+                        bgcolor: 'rgba(0, 0, 0, 0.8)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1903,7 +1903,7 @@ const ChatInterface = () => {
                         bottom: 0,
                         width: '100vw',
                         height: '100vh',
-                        bgcolor: 'rgba(15, 23, 42, 0.9)',
+                        bgcolor: 'rgba(0, 0, 0, 0.8)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

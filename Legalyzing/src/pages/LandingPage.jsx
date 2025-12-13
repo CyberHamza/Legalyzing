@@ -62,6 +62,7 @@ import { fadeIn, slideInFromBottom, slideInFromLeft, slideInFromRight, staggerCo
 import { scrollToSection } from '../utils/helpers';
 import { useColorMode } from '../App';
 import { contactAPI } from '../utils/api';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 
 // Email validation utility (relaxed but still safe)
 const validateEmail = (email) => {
@@ -245,6 +246,12 @@ const LandingPage = () => {
             role: 'Head of AI Research',
             title: 'AI/ML Engineer',
             bio: 'Focuses on LLM integration and RAG systems'
+        },
+        {
+            name: 'Ali Hamza',
+            role: 'Technical Lead',
+            title: 'Cloud Engineer',
+            bio: 'Architecting scalable cloud infrastructure and secure deployments'
         }
     ];
 
@@ -324,9 +331,12 @@ const LandingPage = () => {
             <AppBar
                 position="sticky"
                 sx={{
-                    background: mode === 'dark' ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+                    background: 'rgba(255, 255, 255, 0.05)', // Fallback
+                    bgcolor: 'background.paper', // Use theme token
                     backdropFilter: 'blur(10px)',
                     boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider'
                 }}
             >
                 <Toolbar>
@@ -336,7 +346,7 @@ const LandingPage = () => {
                         sx={{
                             flexGrow: 1,
                             fontWeight: 800,
-                            background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                            background: 'var(--primary-gradient)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
                             cursor: 'pointer'
@@ -355,14 +365,28 @@ const LandingPage = () => {
                     </Box>
 
                     <Box sx={{ ml: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-                        <IconButton sx={{ ml: 1, color: 'text.primary' }} onClick={toggleColorMode}>
-                            {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-                        </IconButton>
-                        <Button variant="outlined" color="primary" onClick={() => navigate('/signin')}>Sign In</Button>
-                        <Button variant="contained" color="primary" onClick={() => navigate('/signup')}
+                        <ThemeSwitcher variant="icon" />
+                        <Button 
+                            variant="outlined" 
+                            onClick={() => navigate('/signin')}
                             sx={{
-                                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                                '&:hover': { background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)' }
+                                color: 'primary.main',
+                                borderColor: 'primary.main',
+                                '&:hover': {
+                                    borderColor: 'primary.light',
+                                    bgcolor: 'action.hover'
+                                }
+                            }}
+                        >
+                            Sign In
+                        </Button>
+                        <Button variant="contained" onClick={() => navigate('/signup')}
+                            sx={{
+                                background: 'var(--primary-gradient)',
+                                '&:hover': { 
+                                    opacity: 0.9,
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                                }
                             }}
                         >
                             Get Started
@@ -373,10 +397,11 @@ const LandingPage = () => {
 
             {/* Hero Section */}
             <Box sx={{ minHeight: '90vh', display: 'flex', alignItems: 'center', 
-                background: mode === 'dark' ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)' : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%)',
+                bgcolor: 'background.default',
                 position: 'relative', overflow: 'hidden' }}>
                 <Box sx={{ position: 'absolute', top: '10%', right: '10%', width: '400px', height: '400px',
-                    background: 'radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%)',
+                    background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)',
+                    opacity: 0.3,
                     borderRadius: '50%', filter: 'blur(60px)', animation: 'float 8s ease-in-out infinite' }} />
                 <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
                     <Grid container spacing={4} alignItems="center">
@@ -390,8 +415,8 @@ const LandingPage = () => {
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
                                     <Button variant="contained" size="large" onClick={() => navigate('/signup')}
-                                        sx={{ px: 4, py: 1.5, fontSize: '1.1rem', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                                            '&:hover': { background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', transform: 'translateY(-2px)', boxShadow: '0 8px 24px rgba(99, 102, 241, 0.4)' }
+                                        sx={{ px: 4, py: 1.5, fontSize: '1.1rem', background: 'var(--primary-gradient)',
+                                            '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }
                                         }}>
                                         Start Free Trial
                                     </Button>
@@ -404,7 +429,7 @@ const LandingPage = () => {
                         </Grid>
                         <Grid item xs={12} md={6}>
                             <motion.div initial="hidden" animate="visible" variants={slideInFromRight}>
-                                <Card className="glass" sx={{ p: 4 }}>
+                                <Card className="glass" sx={{ p: 4, bgcolor: 'background.paper' }}>
                                     <Description sx={{ fontSize: 120, color: 'primary.main', mb: 2 }} />
                                     <Typography variant="h4" gutterBottom fontWeight={700}>5+ Document Templates</Typography>
                                     <Typography color="text.secondary">From NDAs to Employment Contracts, generate professional legal documents in seconds</Typography>
@@ -416,13 +441,13 @@ const LandingPage = () => {
             </Box>
 
             {/* Mission & Vision Section */}
-            <Box sx={{ py: 12, background: theme.palette.background.paper }}>
+            <Box sx={{ py: 12, background: 'var(--bg-secondary)' }}>
                 <Container maxWidth="lg">
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
                             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeIn}>
-                                <Card className="glass hover-lift" sx={{ p: 4, height: '100%' }}>
-                                    <Box sx={{ width: 64, height: 64, borderRadius: '16px', background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                                <Card className="glass hover-lift" sx={{ p: 4, height: '100%', bgcolor: 'background.paper' }}>
+                                    <Box sx={{ width: 64, height: 64, borderRadius: '16px', background: 'var(--primary-gradient)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
                                         <Visibility sx={{ fontSize: 32, color: 'white' }} />
                                     </Box>
@@ -437,8 +462,8 @@ const LandingPage = () => {
                         </Grid>
                         <Grid item xs={12} md={6}>
                             <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeIn} transition={{ delay: 0.2 }}>
-                                <Card className="glass hover-lift" sx={{ p: 4, height: '100%' }}>
-                                    <Box sx={{ width: 64, height: 64, borderRadius: '16px', background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                <Card className="glass hover-lift" sx={{ p: 4, height: '100%', bgcolor: 'background.paper' }}>
+                                    <Box sx={{ width: 64, height: 64, borderRadius: '16px', background: 'var(--primary-gradient)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3 }}>
                                         <Gavel sx={{ fontSize: 32, color: 'white' }} />
                                     </Box>
@@ -476,10 +501,10 @@ const LandingPage = () => {
                                                 sx={{ 
                                                     height: 8, 
                                                     borderRadius: 4,
-                                                    background: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                                    background: 'rgba(0,0,0,0.1)',
                                                     '& .MuiLinearProgress-bar': {
                                                         borderRadius: 4,
-                                                        background: 'linear-gradient(90deg, #6366f1 0%, #06b6d4 100%)'
+                                                        background: 'var(--primary-gradient)'
                                                     }
                                                 }}
                                             />
@@ -493,7 +518,7 @@ const LandingPage = () => {
             </Box>
 
             {/* Services Section */}
-            <Box id="services" sx={{ py: 12, background: theme.palette.background.default }}>
+            <Box id="services" sx={{ py: 12, background: 'var(--bg-primary)' }}>
                 <Container maxWidth="lg">
                     <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={fadeIn}>
                         <Typography variant="h2" align="center" gutterBottom fontWeight={700}>
@@ -508,7 +533,7 @@ const LandingPage = () => {
                         {services.map((service, index) => (
                             <Grid item xs={12} md={4} key={index}>
                                 <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={slideInFromBottom} transition={{ delay: index * 0.2 }}>
-                                    <Card className="glass hover-lift" sx={{ height: '100%', p: 3 }}>
+                                    <Card className="glass hover-lift" sx={{ height: '100%', p: 3, bgcolor: 'background.paper' }}>
                                         <Box sx={{ color: 'primary.main', mb: 2, display: 'flex', justifyContent: 'center' }}>
                                             {service.icon}
                                         </Box>
@@ -525,7 +550,7 @@ const LandingPage = () => {
             </Box>
 
             {/* Team Section */}
-            <Box id="team" sx={{ py: 12, background: theme.palette.background.paper }}>
+            <Box id="team" sx={{ py: 12, background: 'var(--bg-secondary)' }}>
                 <Container maxWidth="lg">
                     <Typography variant="h2" align="center" gutterBottom fontWeight={700}>
                         Leadership <span className="gradient-text">Team</span>
@@ -541,10 +566,11 @@ const LandingPage = () => {
                                     <Card className="glass hover-lift" sx={{ 
                                         height: '100%', 
                                         overflow: 'hidden',
+                                        bgcolor: 'background.paper',
                                         transition: 'all 0.3s ease',
                                         '&:hover': {
                                             transform: 'translateY(-8px)',
-                                            boxShadow: '0 12px 40px rgba(99, 102, 241, 0.3)'
+                                            boxShadow: '0 12px 40px rgba(0,0,0,0.1)'
                                         }
                                     }}>
                                         <Box sx={{ 
@@ -552,7 +578,7 @@ const LandingPage = () => {
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            bgcolor: mode === 'dark' ? 'rgba(15,23,42,0.9)' : 'rgba(148,163,184,0.2)'
+                                            bgcolor: 'action.hover'
                                         }}>
                                             <PersonIcon sx={{ fontSize: 96, color: 'primary.main' }} />
                                         </Box>
@@ -565,10 +591,10 @@ const LandingPage = () => {
                                                 {member.title}
                                             </Typography>
                                             <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                                                <IconButton size="small" sx={{ bgcolor: 'rgba(99, 102, 241, 0.1)', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
+                                                <IconButton size="small" sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
                                                     <LinkedIn fontSize="small" />
                                                 </IconButton>
-                                                <IconButton size="small" sx={{ bgcolor: 'rgba(99, 102, 241, 0.1)', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
+                                                <IconButton size="small" sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
                                                     <Email fontSize="small" />
                                                 </IconButton>
                                             </Box>
@@ -582,7 +608,7 @@ const LandingPage = () => {
             </Box>
 
             {/* Testimonials Section */}
-            <Box id="testimonials" sx={{ py: 12, background: theme.palette.background.default }}>
+            <Box id="testimonials" sx={{ py: 12, background: 'var(--bg-primary)' }}>
                 <Container maxWidth="lg">
                     <Typography variant="h2" align="center" gutterBottom fontWeight={700}>
                         Client <span className="gradient-text">Testimonials</span>
@@ -594,13 +620,13 @@ const LandingPage = () => {
                     <Box sx={{ position: 'relative', maxWidth: '1000px', mx: 'auto' }}>
                         <IconButton onClick={handleTestimonialPrev}
                             sx={{ position: 'absolute', left: { xs: -20, md: -60 }, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
-                                background: 'rgba(99, 102, 241, 0.2)', '&:hover': { background: 'rgba(99, 102, 241, 0.4)' } }}>
+                                background: 'rgba(0,0,0,0.05)', '&:hover': { background: 'rgba(0,0,0,0.1)' } }}>
                             <ArrowBackIos sx={{ color: 'primary.main' }} />
                         </IconButton>
 
                         <IconButton onClick={handleTestimonialNext}
                             sx={{ position: 'absolute', right: { xs: -20, md: -60 }, top: '50%', transform: 'translateY(-50%)', zIndex: 2,
-                                background: 'rgba(99, 102, 241, 0.2)', '&:hover': { background: 'rgba(99, 102, 241, 0.4)' } }}>
+                                background: 'rgba(0,0,0,0.05)', '&:hover': { background: 'rgba(0,0,0,0.1)' } }}>
                             <ArrowForwardIos sx={{ color: 'primary.main' }} />
                         </IconButton>
 
@@ -612,7 +638,7 @@ const LandingPage = () => {
                                 exit={{ opacity: 0, x: -100 }}
                                 transition={{ duration: 0.5 }}
                             >
-                                <Card className="glass" sx={{ p: 4 }}>
+                                <Card className="glass" sx={{ p: 4, bgcolor: 'background.paper' }}>
                                     <CardContent>
                                         <Box sx={{ display: 'flex', alignItems: 'start', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
                                             <Box sx={{ 
@@ -625,7 +651,7 @@ const LandingPage = () => {
                                                 border: '4px solid',
                                                 borderColor: 'primary.main',
                                                 flexShrink: 0,
-                                                bgcolor: mode === 'dark' ? 'rgba(15,23,42,0.9)' : 'rgba(148,163,184,0.2)'
+                                                bgcolor: 'action.hover'
                                             }}>
                                                 <PersonIcon sx={{ fontSize: 64, color: 'primary.main' }} />
                                             </Box>
@@ -664,8 +690,8 @@ const LandingPage = () => {
                                         height: 8,
                                         borderRadius: 4,
                                         background: currentTestimonialIndex === index 
-                                            ? 'linear-gradient(90deg, #6366f1 0%, #06b6d4 100%)' 
-                                            : mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+                                            ? 'var(--primary-gradient)'
+                                            : 'rgba(127,127,127,0.3)',
                                         cursor: 'pointer',
                                         transition: 'all 0.3s ease'
                                     }}
@@ -677,15 +703,15 @@ const LandingPage = () => {
             </Box>
 
             {/* CTA Section */}
-            <Box sx={{ py: 10, background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)', position: 'relative', overflow: 'hidden' }}>
+            <Box sx={{ py: 10, background: 'var(--secondary-gradient)', position: 'relative', overflow: 'hidden' }}>
                 <Box sx={{ position: 'absolute', top: '-50%', right: '-10%', width: '500px', height: '500px',
-                    background: 'radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(100px)' }} />
+                    background: 'radial-gradient(circle, rgba(255,255,255, 0.2) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(100px)' }} />
                 <Container maxWidth="md">
                     <Box sx={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
                         <Typography variant="h2" fontWeight={700} sx={{ color: 'white', mb: 2 }}>
                             Ready to Transform Your Legal Workflow?
                         </Typography>
-                        <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)', mb: 4 }}>
+                        <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.8)', mb: 4 }}>
                             Join hundreds of legal professionals who trust Legalyzing for their document generation journey.
                         </Typography>
                         <Button 
@@ -697,12 +723,12 @@ const LandingPage = () => {
                                 px: 6,
                                 py: 2,
                                 fontSize: '1.1rem',
-                                background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-                                color: 'white',
+                                background: 'white',
+                                color: 'primary.main',
                                 '&:hover': {
-                                    background: 'linear-gradient(135deg, #4f46e5 0%, #0284c7 100%)',
+                                    background: '#f8fafc',
                                     transform: 'translateY(-2px)',
-                                    boxShadow: '0 12px 40px rgba(16, 185, 129, 0.4)'
+                                    boxShadow: '0 12px 40px rgba(0,0,0,0.2)'
                                 }
                             }}
                         >
@@ -713,7 +739,7 @@ const LandingPage = () => {
             </Box>
 
             {/* FAQ Section */}
-            <Box sx={{ py: 12, background: theme.palette.background.paper }}>
+            <Box sx={{ py: 12, background: 'var(--bg-secondary)' }}>
                 <Container maxWidth="md">
                     <Typography variant="h2" align="center" gutterBottom fontWeight={700}>
                         Frequently Asked <span className="gradient-text">Questions</span>
@@ -729,10 +755,10 @@ const LandingPage = () => {
                                 onChange={handleFAQChange(`panel${index}`)}
                                 sx={{
                                     mb: 2,
-                                    background: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                                    bgcolor: 'background.paper',
                                     backdropFilter: 'blur(10px)',
                                     border: '1px solid',
-                                    borderColor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                    borderColor: 'divider',
                                     borderRadius: '12px !important',
                                     '&:before': { display: 'none' },
                                     boxShadow: 'none'
@@ -753,7 +779,7 @@ const LandingPage = () => {
             </Box>
 
             {/* Contact Section */}
-            <Box id="contact" sx={{ py: 12, background: theme.palette.background.default }}>
+            <Box id="contact" sx={{ py: 12, background: 'var(--bg-primary)' }}>
                 <Container maxWidth="lg">
                     <Typography variant="h2" align="center" gutterBottom fontWeight={700}>
                         Get In <span className="gradient-text">Touch</span>
@@ -765,25 +791,25 @@ const LandingPage = () => {
                     {/* Contact Info Cards */}
                     <Grid container spacing={3} sx={{ mb: 6 }}>
                         {[
-                            { icon: <Place />, title: 'Visit Us', info: ['Military College of Signals', 'Rawalpindi, Pakistan'], color: '#6366f1' },
-                            { icon: <Phone />, title: 'Call Us', info: ['+92 (300) 123-4567', '+92 (333) 987-6543'], color: '#0ea5e9' },
-                            { icon: <Mail />, title: 'Email Us', info: ['info@legalyzing.com', 'support@legalyzing.com'], color: '#6366f1' },
-                            { icon: <AccessTime />, title: 'Working Hours', info: ['Mon - Fri: 9:00 AM - 6:00 PM', '24/7 Emergency Support'], color: '#8b5cf6' }
+                            { icon: <Place />, title: 'Visit Us', info: ['Military College of Signals', 'Rawalpindi, Pakistan'] },
+                            { icon: <Phone />, title: 'Call Us', info: ['+92 (300) 123-4567', '+92 (333) 987-6543'] },
+                            { icon: <Mail />, title: 'Email Us', info: ['info@legalyzing.com', 'support@legalyzing.com'] },
+                            { icon: <AccessTime />, title: 'Working Hours', info: ['Mon - Fri: 9:00 AM - 6:00 PM', '24/7 Emergency Support'] }
                         ].map((item, index) => (
                             <Grid item xs={12} sm={6} md={3} key={index}>
-                                <Card className="glass hover-lift" sx={{ p: 3, textAlign: 'center', height: '100%' }}>
+                                <Card className="glass hover-lift" sx={{ p: 3, textAlign: 'center', height: '100%', bgcolor: 'background.paper' }}>
                                     <Box sx={{ 
                                         width: 64, 
                                         height: 64, 
                                         borderRadius: '50%', 
-                                        background: `${item.color}20`,
+                                        bgcolor: 'action.hover',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         mx: 'auto',
                                         mb: 2
                                     }}>
-                                        {React.cloneElement(item.icon, { sx: { fontSize: 32, color: item.color } })}
+                                        {React.cloneElement(item.icon, { sx: { fontSize: 32, color: 'primary.main' } })}
                                     </Box>
                                     <Typography variant="h6" fontWeight={600} gutterBottom>{item.title}</Typography>
                                     {item.info.map((line, i) => (
@@ -796,7 +822,7 @@ const LandingPage = () => {
 
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={6}>
-                            <Card className="glass" sx={{ p: 4 }}>
+                            <Card className="glass" sx={{ p: 4, bgcolor: 'background.paper' }}>
                                 <Typography variant="h5" fontWeight={700} gutterBottom>
                                     Send Us a <span className="gradient-text">Message</span>
                                 </Typography>
@@ -814,8 +840,8 @@ const LandingPage = () => {
                                         disabled={loading}
                                         endIcon={loading ? <CircularProgress size={20} /> : <Send />}
                                         sx={{
-                                            background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
-                                            '&:hover': { background: 'linear-gradient(135deg, #4f46e5 0%, #0284c7 100%)' }
+                                            background: mode === 'dark' ? 'linear-gradient(135deg, #76ABAE 0%, #8BC4C7 100%)' : mode === 'earthTone' ? '#A27B5C' : 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)',
+                                            '&:hover': { background: mode === 'dark' ? '#5F8A8D' : mode === 'earthTone' ? '#8B6B4C' : 'linear-gradient(135deg, #4f46e5 0%, #0284c7 100%)' }
                                         }}
                                     >
                                         {loading ? 'Sending...' : 'Send Message'}
@@ -843,66 +869,7 @@ const LandingPage = () => {
                 </Container>
             </Box>
 
-            {/* Footer */}
-            <Box sx={{ py: 6, background: mode === 'dark' ? '#0f172a' : '#1e293b', color: 'white' }}>
-                <Container maxWidth="lg">
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} md={4}>
-                            <Typography variant="h5" fontWeight={800} className="gradient-text" gutterBottom>Legalyzing</Typography>
-                            <Typography variant="body2" sx={{ mb: 2, opacity: 0.8 }}>
-                                AI-powered legal document generation platform transforming how legal professionals work.
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                {[Facebook, Twitter, LinkedIn, Instagram, GitHub].map((Icon, index) => (
-                                    <IconButton key={index} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white', '&:hover': { bgcolor: 'primary.main' } }}>
-                                        <Icon fontSize="small" />
-                                    </IconButton>
-                                ))}
-                            </Box>
-                        </Grid>
-                        <Grid item xs={6} md={2}>
-                            <Typography variant="h6" fontWeight={600} gutterBottom>Company</Typography>
-                            <Stack spacing={1}>
-                                {['About Us', 'Services', 'Team', 'Contact'].map((item) => (
-                                    <Link key={item} href="#" color="inherit" underline="hover" sx={{ opacity: 0.8 }}>{item}</Link>
-                                ))}
-                            </Stack>
-                        </Grid>
-                        <Grid item xs={6} md={2}>
-                            <Typography variant="h6" fontWeight={600} gutterBottom>Legal</Typography>
-                            <Stack spacing={1}>
-                                {['Privacy Policy', 'Terms of Service', 'Cookie Policy'].map((item) => (
-                                    <Link key={item} href="#" color="inherit" underline="hover" sx={{ opacity: 0.8 }}>{item}</Link>
-                                ))}
-                            </Stack>
-                        </Grid>
-                        <Grid item xs={12} md={4}>
-                            <Typography variant="h6" fontWeight={600} gutterBottom>Newsletter</Typography>
-                            <Typography variant="body2" sx={{ mb: 2, opacity: 0.8 }}>Subscribe for updates and legal tech insights</Typography>
-                            <Box component="form" onSubmit={handleNewsletterSubscribe} sx={{ display: 'flex', gap: 1 }}>
-                                <TextField 
-                                    size="small" 
-                                    placeholder="Your email" 
-                                    value={newsletterEmail}
-                                    onChange={(e) => setNewsletterEmail(e.target.value)}
-                                    sx={{ flex: 1, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 1,
-                                        '& .MuiOutlinedInput-root': { color: 'white' },
-                                        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' }
-                                    }}
-                                />
-                                <Button type="submit" variant="contained" disabled={newsletterLoading}
-                                    sx={{ background: 'linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)' }}>
-                                    {newsletterLoading ? <CircularProgress size={20} /> : 'Subscribe'}
-                                </Button>
-                            </Box>
-                        </Grid>
-                    </Grid>
-                    <Divider sx={{ my: 4, borderColor: 'rgba(255,255,255,0.1)' }} />
-                    <Typography variant="body2" align="center" sx={{ opacity: 0.6 }}>
-                        © 2024 Legalyzing. All rights reserved. Built with ❤️ by the Legalyzing Team
-                    </Typography>
-                </Container>
-            </Box>
+
 
             {/* Notification Snackbar */}
             <Snackbar open={notification.open} autoHideDuration={6000} onClose={() => setNotification({ ...notification, open: false })}>
@@ -910,6 +877,88 @@ const LandingPage = () => {
                     {notification.message}
                 </Alert>
             </Snackbar>
+
+            {/* Footer */}
+            <Box component="footer" sx={{ py: 6, bgcolor: 'background.paper', borderTop: '1px solid', borderColor: 'divider' }}>
+                <Container maxWidth="lg">
+                    <Grid container spacing={4} justifyContent="space-between">
+                        <Grid item xs={12} md={4}>
+                            <Typography variant="h6" fontWeight={700} gutterBottom sx={{ background: 'var(--primary-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                Legalyzing
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" paragraph>
+                                Empowering legal professionals with next-generation AI tools for document generation and compliance.
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                {[Facebook, Twitter, LinkedIn, Instagram, GitHub].map((Icon, i) => (
+                                    <IconButton key={i} size="small" sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
+                                        <Icon fontSize="small" />
+                                    </IconButton>
+                                ))}
+                            </Box>
+                        </Grid>
+                        <Grid item xs={6} md={2}>
+                            <Typography variant="subtitle2" fontWeight={700} gutterBottom>Product</Typography>
+                            <Stack spacing={1}>
+                                {['Features', 'Pricing', 'API', 'Integrations', 'Documentation'].map((item) => (
+                                    <Link key={item} href="#" color="text.secondary" underline="hover" sx={{ fontSize: '0.875rem' }}>{item}</Link>
+                                ))}
+                            </Stack>
+                        </Grid>
+                        <Grid item xs={6} md={2}>
+                            <Typography variant="subtitle2" fontWeight={700} gutterBottom>Company</Typography>
+                            <Stack spacing={1}>
+                                {['About Us', 'Careers', 'Blog', 'Contact', 'Partners'].map((item) => (
+                                    <Link key={item} href="#" color="text.secondary" underline="hover" sx={{ fontSize: '0.875rem' }}>{item}</Link>
+                                ))}
+                            </Stack>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            <Typography variant="subtitle2" fontWeight={700} gutterBottom>Newsletter</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Subscribe to stay updated with legal tech innovations.
+                            </Typography>
+                            <Box component="form" onSubmit={handleNewsletterSubscribe} sx={{ display: 'flex', gap: 1 }}>
+                                <TextField
+                                    size="small"
+                                    placeholder="Enter your email"
+                                    fullWidth
+                                    value={newsletterEmail}
+                                    onChange={(e) => setNewsletterEmail(e.target.value)}
+                                    sx={{ 
+                                        bgcolor: 'background.default',
+                                        '& .MuiOutlinedInput-root': { borderRadius: '2px' }
+                                    }}
+                                />
+                                <Button 
+                                    type="submit"
+                                    variant="contained" 
+                                    disabled={newsletterLoading}
+                                    sx={{ 
+                                        background: 'var(--primary-gradient)', 
+                                        color: 'white',
+                                        minWidth: 'auto',
+                                        px: 2
+                                    }}
+                                >
+                                    {newsletterLoading ? <CircularProgress size={20} color="inherit" /> : <Send fontSize="small" />}
+                                </Button>
+                            </Box>
+                        </Grid>
+                    </Grid>
+                    <Divider sx={{ my: 4 }} />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            © {new Date().getFullYear()} Legalyzing. All rights reserved.
+                        </Typography>
+                        <Stack direction="row" spacing={3}>
+                            <Link href="#" color="text.secondary" underline="hover" variant="body2">Privacy Policy</Link>
+                            <Link href="#" color="text.secondary" underline="hover" variant="body2">Terms of Service</Link>
+                            <Link href="#" color="text.secondary" underline="hover" variant="body2">Cookie Policy</Link>
+                        </Stack>
+                    </Box>
+                </Container>
+            </Box>
         </Box>
     );
 };

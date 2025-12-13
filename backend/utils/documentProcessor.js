@@ -62,6 +62,7 @@ async function generateEmbedding(text) {
             model: "text-embedding-3-small",
             input: text,
             encoding_format: "float",
+            dimensions: 1024,
         });
 
         return response.data[0].embedding;

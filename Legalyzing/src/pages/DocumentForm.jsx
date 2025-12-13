@@ -35,6 +35,7 @@ import { motion } from 'framer-motion';
 import { documentTemplates } from '../utils/mockData';
 import { generateAPI } from '../utils/api';
 import { useColorMode } from '../App';
+import ThemeSwitcher from '../components/ThemeSwitcher';
 import html2pdf from 'html2pdf.js';
 
 const fadeIn = {
@@ -229,9 +230,7 @@ const DocumentForm = () => {
                         <Typography variant="h5" fontWeight={700}>
                             {template.name}
                         </Typography>
-                        <IconButton onClick={toggleColorMode}>
-                            {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-                        </IconButton>
+                        <ThemeSwitcher variant="icon" />
                     </Box>
                 </Box>
 
@@ -344,11 +343,11 @@ const DocumentForm = () => {
                                                 minWidth: 200,
                                                 height: 48,
                                                 borderRadius: '2px',
-                                                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                                                background: mode === 'dark' ? '#76ABAE' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                                                boxShadow: mode === 'dark' ? '0 4px 12px rgba(118, 171, 174, 0.3)' : '0 4px 12px rgba(16, 185, 129, 0.3)',
                                                 '&:hover': {
-                                                    background: 'linear-gradient(135deg, #4f46e5 0%, #047857 100%)',
-                                                    boxShadow: '0 6px 16px rgba(16, 185, 129, 0.4)',
+                                                    background: mode === 'dark' ? '#5F8A8D' : 'linear-gradient(135deg, #4f46e5 0%, #047857 100%)',
+                                                    boxShadow: mode === 'dark' ? '0 6px 16px rgba(118, 171, 174, 0.4)' : '0 6px 16px rgba(16, 185, 129, 0.4)',
                                                 }
                                             }}
                                         >
@@ -567,7 +566,7 @@ const DocumentForm = () => {
                         bottom: 0,
                         width: '100vw',
                         height: '100vh',
-                        bgcolor: 'rgba(15, 23, 42, 0.9)',
+                        bgcolor: mode === 'dark' ? 'rgba(34, 40, 49, 0.9)' : 'rgba(15, 23, 42, 0.9)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
