@@ -78,10 +78,8 @@ const protect = async (req, res, next) => {
 const generateToken = (userId) => {
     return jwt.sign(
         { id: userId },
-        process.env.JWT_SECRET,
-        {
-            expiresIn: process.env.JWT_EXPIRE || '7d'
-        }
+        process.env.JWT_SECRET
+        // No expiresIn: Token persists indefinitely or until secret is rotated
     );
 };
 

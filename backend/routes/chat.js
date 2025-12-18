@@ -80,36 +80,94 @@ router.post('/', protect, async (req, res) => {
         let hasDocumentContext = false;
         
         // Always try to retrieve context if we have a conversation ID or specific docs
+        
+        // --- CONTEXT AUTO-RESOLUTION FIX ---
+        // If the frontend didn't send specific documentIds, but we are in a chat session (conversationId),
+        // we MUST find all documents associated with this chat to provide full context.
+        if ((!documentIds || documentIds.length === 0) && conversationId) {
+            console.log('🔍 Auto-resolving documents for Chat ID:', conversationId);
+            try {
+                // Find all docs linked to this chat
+                const chatDocs = await Document.find({ chatId: conversationId }).select('_id');
+                if (chatDocs.length > 0) {
+                    documentIds = chatDocs.map(d => d._id);
+                    console.log(`✅ Auto-resolved ${documentIds.length} documents from session context.`);
+                } else {
+                    console.log('ℹ️ No documents found for this chat session.');
+                }
+            } catch (err) {
+                console.error('❌ Error resolving chat documents:', err);
+            }
+        }
+        // -----------------------------------
+
         if (conversationId || (documentIds && documentIds.length > 0)) {
             console.log('📄 Processing RAG for Chat:', conversationId);
             
-            // Generate embedding for user query
-            const queryEmbedding = await generateEmbedding(message);
+            let contextParts = [];
 
-            // Query Pinecone for relevant chunks (Scoped to Chat ID)
+            // 1. Fetch Document Metadata & Summaries (High-Level Context)
+            // This fixes the "Summarize this" issue by providing guaranteed context even if vector search fails.
+            if (documentIds && documentIds.length > 0) {
+                const documents = await Document.find({ _id: { $in: documentIds } })
+                    .select('filename summary metadata docType');
+
+                if (documents.length > 0) {
+                    let summaryContext = '=== DOCUMENT OVERVIEWS (Guaranteed Context) ===\n';
+                    documents.forEach(doc => {
+                        summaryContext += `\n--- Document: ${doc.filename} ---\n`;
+                        summaryContext += `Type: ${doc.docType || 'General Legal Document'}\n`;
+                        
+                        if (doc.metadata) {
+                            if (doc.metadata.parties) summaryContext += `Parties: ${JSON.stringify(doc.metadata.parties)}\n`;
+                            if (doc.metadata.court) summaryContext += `Court: ${doc.metadata.court.name || 'N/A'}\n`;
+                            if (doc.metadata.dates) summaryContext += `Dates: ${JSON.stringify(doc.metadata.dates)}\n`;
+                        }
+
+                        if (doc.summary) {
+                            summaryContext += `Summary of Facts: ${doc.summary.facts || 'Not available'}\n`;
+                            if (doc.summary.legalIssues?.length) {
+                                summaryContext += `Key Legal Issues: ${doc.summary.legalIssues.join(', ')}\n`;
+                            }
+                            if (doc.summary.reliefSought) {
+                                summaryContext += `Relief Sought: ${doc.summary.reliefSought}\n`;
+                            }
+                        }
+                    });
+                    summaryContext += '=== END OVERVIEWS ===\n\n';
+                    contextParts.push(summaryContext);
+                    hasDocumentContext = true; // We have context!
+                }
+            }
+
+            // 2. Vector Search (Specific Context)
+            const queryEmbedding = await generateEmbedding(message);
             const relevantChunks = await pineconeService.queryVectors(
                 queryEmbedding,
                 8, // top K results
                 req.user.id,
                 documentIds,
-                conversationId // Pass Chat ID for scoping
+                conversationId
             );
 
-                console.log(`🔍 Found ${relevantChunks.length} relevant chunks from Pinecone`);
+            console.log(`🔍 Found ${relevantChunks.length} relevant chunks from Pinecone`);
 
-                if (relevantChunks.length > 0) {
-                    hasDocumentContext = true;
-                    context = '=== DOCUMENT CONTEXT ===\n\n';
-                    context += 'The following excerpts are from the user\'s uploaded documents. Use this information to answer their questions accurately.\n\n';
-                    
-                    relevantChunks.forEach((chunk, index) => {
-                        context += `--- Excerpt ${index + 1} (from "${chunk.documentName}") ---\n`;
-                        context += `${chunk.text}\n\n`;
-                    });
-                    
-                    context += '=== END OF DOCUMENT CONTEXT ===\n';
-                }
+            if (relevantChunks.length > 0) {
+                let vectorContext = '=== RELEVANT EXCERPTS (Vector Search) ===\n';
+                vectorContext += 'The following distinct passages were found via semantic search:\n\n';
+                
+                relevantChunks.forEach((chunk, index) => {
+                    vectorContext += `--- Excerpt ${index + 1} (from "${chunk.documentName}") ---\n`;
+                    vectorContext += `${chunk.text}\n\n`;
+                });
+                
+                contextParts.push(vectorContext);
+                hasDocumentContext = true;
+            }
 
+            if (hasDocumentContext) {
+                context = contextParts.join('\n');
+            }
         }
 
         // Check for pending documents

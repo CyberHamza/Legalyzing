@@ -466,28 +466,26 @@ const ChatInterface = () => {
 
             // Context Logic v2: Exclusive & Deterministic
             let documentIds = [];
+            
+            // 1. Prioritize currently attached files (Explicit Context)
             const attachedIds = currentAttachedFiles.map(f => f.id || f._id).filter(Boolean);
             
             if (attachedIds.length > 0) {
                 documentIds = attachedIds;
                 console.log('📄 Context: Using Attached Files (Exclusive)', documentIds);
             } else {
-                // Fallback: Latest uploaded document in this chat
-                const allChatDocs = activeChat?.documentIds || [];
-                const relevantUploaded = uploadedDocs.filter(d => d.chatId === (activeChat?.id || activeChat?._id)).map(d => d.id || d._id);
-                const candidateIds = [...new Set([...allChatDocs, ...relevantUploaded])];
+                // 2. Fallback: Use ALL documents in this chat (Implicit Context)
+                // Fix: Previously only selected the single latest document. Now selects all.
+                const chatDocIds = activeChat?.documentIds || [];
+                const uploadedDocIds = uploadedDocs
+                    .filter(d => d.chatId === (activeChat?.id || activeChat?._id))
+                    .map(d => d.id || d._id);
                 
-                if (candidateIds.length > 0) {
-                     const findDoc = (id) => uploadedDocs.find(d => (d.id === id || d._id === id)) || { createdAt: 0 };
-                     const sortedDocs = candidateIds.map(id => {
-                         const doc = findDoc(id);
-                         return { id, time: new Date(doc.createdAt || doc.uploadDate || 0).getTime() };
-                     }).sort((a, b) => b.time - a.time);
-                     
-                     if (sortedDocs.length > 0) {
-                         documentIds = [sortedDocs[0].id];
-                         console.log('📄 Context: Using Latest Document (Implicit)', documentIds);
-                     }
+                // Merge and deduplicate
+                documentIds = [...new Set([...chatDocIds, ...uploadedDocIds])];
+                
+                if (documentIds.length > 0) {
+                     console.log(`📄 Context: Using All Chat Documents (${documentIds.length} docs)`, documentIds);
                 }
             }
 
@@ -1276,11 +1274,27 @@ const ChatInterface = () => {
                                     {attachedFiles.map((file, index) => (
                                         <Chip
                                             key={index}
-                                            label={file.filename}
+                                            label={
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Typography variant="caption">{file.filename}</Typography>
+                                                    {file.processing && (
+                                                        <Typography variant="caption" sx={{ fontStyle: 'italic', opacity: 0.8 }}>
+                                                            (Processing...)
+                                                        </Typography>
+                                                    )}
+                                                </Box>
+                                            }
                                             onDelete={() => removeFile(index)}
-                                            size="small"
-                                            icon={file.processing ? <CircularProgress size={16} /> : <Description />}
-                                            sx={{ borderRadius: '2px' }}
+                                            size="medium" // Increased size for better visibility
+                                            icon={file.processing ? <CircularProgress size={16} color="inherit" /> : <Description />}
+                                            sx={{ 
+                                                borderRadius: '4px',
+                                                height: 'auto',
+                                                py: 0.5,
+                                                bgcolor: file.processing ? 'rgba(255, 193, 7, 0.1)' : 'default', // Slight yellow tint for processing
+                                                borderColor: file.processing ? 'warning.main' : 'default',
+                                                border: file.processing ? '1px solid' : 'default'
+                                            }}
                                         />
                                     ))}
                                 </Box>
