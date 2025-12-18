@@ -10,6 +10,8 @@ const pineconeService = require('../services/pineconeService');
 const { extractFacts } = require('../services/factExtractor');
 const { detectIntent, getDocumentTypeName } = require('../services/intentDetector');
 const { generateFieldStatusMessage, mapFactsToFields } = require('../services/fieldMapper');
+const { getPakistanSystemPrompt, detectCaseType } = require('../services/pakistanLegalPrompts');
+const { getJudgmentContext } = require('../services/judgmentScraper');
 
 // @route   POST /api/chat
 // @desc    Send message and get AI response
@@ -183,27 +185,21 @@ router.post('/', protect, async (req, res) => {
             }
         }
 
-        // Prepare messages for OpenAI
+        // Detect case type from user message for specialized guidance
+        const detectedCaseType = detectCaseType(message);
+        if (detectedCaseType) {
+            console.log(`⚖️ Detected case type: ${detectedCaseType.toUpperCase()}`);
+        }
+
+        // Prepare messages for OpenAI with Pakistan-specific legal prompts
         const messages = [
             {
                 role: 'system',
-                content: hasDocumentContext 
-                    ? `You are Legalyze AI, an expert legal assistant. You have access to the user's uploaded legal documents.
-
-CRITICAL INSTRUCTIONS:
-1. ALWAYS reference the document context when answering questions
-2. Quote specific sections when relevant
-3. If the answer is in the documents, cite the document name
-4. If information is NOT in the documents, clearly state that
-5. Provide accurate, professional legal guidance
-6. Be concise but thorough
-
-Your primary job is to help users understand their legal documents and answer questions based on their content.`
-                    : hasPendingDocs 
-                        ? `You are Legalyze AI. The user is asking about a document that is currently being processed by the system.
-                           Politely inform them that you cannot read the document yet because it is still analyzing (OCR and Vectorization in progress).
-                           Ask them to wait a moment and try again.`
-                        : 'You are Legalyze AI, a helpful legal assistant. Provide accurate, professional, and helpful legal responses.'
+                content: getPakistanSystemPrompt({
+                    hasDocumentContext,
+                    hasPendingDocs,
+                    caseType: detectedCaseType
+                })
             }
         ];
 
@@ -213,6 +209,23 @@ Your primary job is to help users understand their legal documents and answer qu
                 role: 'system',
                 content: context
             });
+        }
+
+        // Add Supreme Court judgment context for legal queries
+        try {
+            if (detectedCaseType) {
+                const judgmentContext = await getJudgmentContext(message, detectedCaseType);
+                if (judgmentContext) {
+                    messages.push({
+                        role: 'system',
+                        content: judgmentContext
+                    });
+                    console.log(`📚 Added Supreme Court precedent context for ${detectedCaseType} case`);
+                }
+            }
+        } catch (judgmentErr) {
+            console.warn('Could not fetch judgment context:', judgmentErr.message);
+            // Non-critical, continue without judgment context
         }
 
         // Add conversation history (last 10 messages for context)

@@ -15,8 +15,61 @@ const classifyDocument = async (text) => {
         const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [
-                { role: 'system', content: 'You are a legal expert classifier for Pakistani legal documents.' },
-                { role: 'user', content: `Classify this document into one of these categories: [Bail Application, Rent Agreement, Employment Contract, Power of Attorney, Affidavit, FIR, Court Order, Judgment, Other]. Return ONLY the category name.\n\nText:\n${text.substring(0, 1500)}` }
+                { 
+                    role: 'system', 
+                    content: `You are an expert legal document classifier specialized EXCLUSIVELY in Pakistani legal documents.
+You must classify documents according to Pakistani legal system standards.
+Consider all Pakistani courts: Supreme Court, High Courts, District Courts, Family Courts, and Tribunals.` 
+                },
+                { 
+                    role: 'user', 
+                    content: `Classify this Pakistani legal document into one of these categories:
+                    
+CRIMINAL:
+- Bail Application (Pre-arrest or Post-arrest)
+- FIR (First Information Report)
+- Section 22-A Petition
+- Quashment Petition
+- Criminal Complaint
+- Challan
+
+CONSTITUTIONAL:
+- Writ Petition (Habeas Corpus, Mandamus, Certiorari)
+- Constitutional Petition
+- Intra Court Appeal
+
+CIVIL:
+- Civil Suit
+- Injunction Application
+- Recovery Suit
+- Specific Performance Suit
+- Partition Suit
+- Declaration Suit
+
+FAMILY:
+- Khula Application
+- Dissolution of Marriage
+- Maintenance/Nafqa Application
+- Custody/Hizanat Petition
+- Guardianship Petition
+- Dower Recovery
+
+OTHERS:
+- Rent Agreement
+- Employment Contract
+- Power of Attorney
+- Affidavit
+- Court Order
+- Judgment
+- Legal Notice
+- Sale Deed
+- Other
+
+Return ONLY the category name from the list above.
+
+Text:
+${text.substring(0, 1500)}` 
+                }
             ],
             temperature: 0
         });

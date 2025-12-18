@@ -280,6 +280,72 @@ async function queryConstitutionWithProvenance(queryText, topK = 5) {
     }
 }
 
+/**
+ * Upsert raw vectors directly to Pinecone (used for judgment indexing)
+ * @param {Array} vectors - Array of { id, values, metadata }
+ * @param {string} namespace - Optional namespace
+ */
+async function upsertRawVectors(vectors, namespace = null) {
+    try {
+        const index = getIndex();
+        
+        // Upsert in batches
+        const batchSize = 100;
+        for (let i = 0; i < vectors.length; i += batchSize) {
+            const batch = vectors.slice(i, i + batchSize);
+            if (namespace) {
+                await index.namespace(namespace).upsert(batch);
+            } else {
+                await index.upsert(batch);
+            }
+        }
+
+        console.log(`✅ Upserted ${vectors.length} raw vectors to Pinecone`);
+        return { success: true, vectorCount: vectors.length };
+        
+    } catch (error) {
+        console.error('❌ Pinecone raw upsert error:', error);
+        throw new Error(`Failed to upsert raw vectors: ${error.message}`);
+    }
+}
+
+/**
+ * Query vectors with custom filter (used for judgment search)
+ * @param {Array} queryEmbedding - Query vector
+ * @param {number} topK - Number of results
+ * @param {Object} filter - Custom filter object
+ * @param {string} namespace - Optional namespace
+ */
+async function queryVectorsWithFilter(queryEmbedding, topK = 10, filter = {}, namespace = null) {
+    try {
+        const index = getIndex();
+        
+        const queryOptions = {
+            vector: queryEmbedding,
+            topK: topK,
+            includeMetadata: true,
+            filter: filter
+        };
+
+        let queryResponse;
+        if (namespace) {
+            queryResponse = await index.namespace(namespace).query(queryOptions);
+        } else {
+            queryResponse = await index.query(queryOptions);
+        }
+
+        return queryResponse.matches.map(match => ({
+            id: match.id,
+            score: match.score,
+            metadata: match.metadata
+        }));
+        
+    } catch (error) {
+        console.error('❌ Pinecone query with filter error:', error);
+        throw new Error(`Failed to query with filter: ${error.message}`);
+    }
+}
+
 module.exports = {
     upsertVectors,
     queryVectors,
@@ -288,5 +354,7 @@ module.exports = {
     getDocumentVectorCount,
     queryConstitution,
     upsertConstitution,
-    queryConstitutionWithProvenance
+    queryConstitutionWithProvenance,
+    upsertRawVectors,
+    queryVectorsWithFilter
 };

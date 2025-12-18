@@ -26,8 +26,13 @@ export const AuthProvider = ({ children }) => {
             if (storedToken) {
                 // Optimistically set state for fast UI
                 setToken(storedToken);
-                if (storedUser) {
-                    setUser(JSON.parse(storedUser));
+                if (storedUser && storedUser !== 'undefined') {
+                    try {
+                        setUser(JSON.parse(storedUser));
+                    } catch (e) {
+                        console.error('Failed to parse stored user:', e);
+                        localStorage.removeItem('user');
+                    }
                 }
 
                 // Verify with backend

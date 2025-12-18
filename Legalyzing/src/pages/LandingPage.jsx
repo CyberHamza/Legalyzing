@@ -55,14 +55,15 @@ import {
     AccessTime,
     Mail,
     Place,
-    Person as PersonIcon
+    Person as PersonIcon,
+    ColorLens
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn, slideInFromBottom, slideInFromLeft, slideInFromRight, staggerContainer } from '../utils/animations';
 import { scrollToSection } from '../utils/helpers';
 import { useColorMode } from '../App';
 import { contactAPI } from '../utils/api';
-import ThemeSwitcher from '../components/ThemeSwitcher';
+// ThemeSwitcher removed as per request
 
 // Email validation utility (relaxed but still safe)
 const validateEmail = (email) => {
@@ -83,7 +84,14 @@ const validateEmail = (email) => {
 const LandingPage = () => {
     const navigate = useNavigate();
     const theme = useTheme();
-    const { toggleColorMode, mode } = useColorMode();
+    const { mode, setTheme, allThemes } = useColorMode();
+    
+    // Cycle through themes on click
+    const cycleTheme = () => {
+        const currentIndex = allThemes.indexOf(mode);
+        const nextIndex = (currentIndex + 1) % allThemes.length;
+        setTheme(allThemes[nextIndex]);
+    };
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -365,7 +373,20 @@ const LandingPage = () => {
                     </Box>
 
                     <Box sx={{ ml: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-                        <ThemeSwitcher variant="icon" />
+                        {/* Theme Cycle Button */}
+                        <IconButton 
+                            onClick={cycleTheme}
+                            sx={{ 
+                                color: 'text.primary',
+                                transition: 'all 0.3s ease',
+                                '&:hover': { 
+                                    transform: 'rotate(180deg)',
+                                    bgcolor: 'action.hover'
+                                }
+                            }}
+                        >
+                            <ColorLens fontSize="medium" />
+                        </IconButton>
                         <Button 
                             variant="outlined" 
                             onClick={() => navigate('/signin')}

@@ -81,8 +81,7 @@ function App() {
               <Route path="/verify-email/:token" element={<VerifyEmail />} />
               <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
             </Routes>
-            {/* Temporary Theme Switcher for Dev/Demo - Ideally this goes in a Settings page or Navbar */}
-            <ThemeSwitcher /> 
+            {/* Theme Switcher removed - UI moved to LandingPage header */} 
           </Router>
         </ThemeProvider>
       </ColorModeContext.Provider>

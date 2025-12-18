@@ -55,14 +55,15 @@ import {
     Edit,
     Menu as MenuIcon,
     Download,
-    CalendarToday,
     Visibility,
-    Gavel
+    Gavel,
+    Close
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useColorMode } from '../App';
 import ThemeSwitcher from '../components/ThemeSwitcher';
+import CaseBuildingWizard from '../components/CaseBuildingWizard';
 import { chatAPI, documentAPI, authAPI, generateAPI, smartGenerateAPI } from '../utils/api';
 import ReactMarkdown from 'react-markdown';
 import html2pdf from 'html2pdf.js';
@@ -200,9 +201,6 @@ const ChatInterface = () => {
     const [uploadedDocs, setUploadedDocs] = useState([]);
     const [generatedDocs, setGeneratedDocs] = useState([]);
     const [isComplianceChecking, setIsComplianceChecking] = useState(false);
-    const [inactivityTimer, setInactivityTimer] = useState(null);
-    const INACTIVITY_TIMEOUT = 600000; // 10 minutes in milliseconds
-
 
     const [menuAnchorEl, setMenuAnchorEl] = useState(null);
     const [menuChatId, setMenuChatId] = useState(null);
@@ -218,6 +216,7 @@ const ChatInterface = () => {
     // Notification State
     const [notification, setNotification] = useState({ open: false, message: '', severity: 'success' });
     const [isDownloading, setIsDownloading] = useState(false);
+    const [caseBuildingOpen, setCaseBuildingOpen] = useState(false);
 
     const [leftOpen, setLeftOpen] = useState(true);
     const [rightOpen, setRightOpen] = useState(true);
@@ -235,40 +234,6 @@ const ChatInterface = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Auto-logout security feature
-    const handleAutoLogout = () => {
-        console.log('Auto-logout triggered due to inactivity');
-        localStorage.removeItem('token');
-        navigate('/login');
-    };
-
-    const resetInactivityTimer = () => {
-        if (inactivityTimer) {
-            clearTimeout(inactivityTimer);
-        }
-        const timer = setTimeout(handleAutoLogout, INACTIVITY_TIMEOUT);
-        setInactivityTimer(timer);
-    };
-
-    // Setup inactivity listeners
-    useEffect(() => {
-        const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-        
-        events.forEach(event => {
-            window.addEventListener(event, resetInactivityTimer);
-        });
-        
-        resetInactivityTimer();
-        
-        return () => {
-            events.forEach(event => {
-                window.removeEventListener(event, resetInactivityTimer);
-            });
-            if (inactivityTimer) {
-                clearTimeout(inactivityTimer);
-            }
-        };
-    }, []);
 
 
     const handleMenuOpen = (event, chatId, chatDate) => {
@@ -819,6 +784,26 @@ const ChatInterface = () => {
                                 }
                             }}
                         />
+                    </Button>
+                    <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<Gavel />}
+                        onClick={() => setCaseBuildingOpen(true)}
+                        sx={{
+                            mb: 2,
+                            textTransform: 'none',
+                            borderRadius: '2px',
+                            borderColor: 'secondary.main',
+                            color: 'secondary.main',
+                            fontSize: '0.85rem',
+                            '&:hover': {
+                                borderColor: 'secondary.dark',
+                                bgcolor: 'action.hover'
+                            }
+                        }}
+                    >
+                        🧑‍⚖️ Build Your Case
                     </Button>
                     <TextField
                         fullWidth
@@ -1944,6 +1929,33 @@ const ChatInterface = () => {
                     </Paper>
                 </Box>
             )}
+            
+            {/* Case Building Wizard Dialog */}
+            <Dialog
+                open={caseBuildingOpen}
+                onClose={() => setCaseBuildingOpen(false)}
+                maxWidth="lg"
+                fullWidth
+                PaperProps={{
+                    sx: { height: '90vh', maxHeight: '90vh' }
+                }}
+            >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper', borderBottom: 1, borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Gavel color="primary" />
+                        <Typography variant="h6">Case Building Wizard</Typography>
+                    </Box>
+                    <IconButton onClick={() => setCaseBuildingOpen(false)}>
+                        <Close />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ p: 0 }}>
+                    <CaseBuildingWizard 
+                        onClose={() => setCaseBuildingOpen(false)}
+                        chatAPI={chatAPI}
+                    />
+                </DialogContent>
+            </Dialog>
         </Box>
     );
 };

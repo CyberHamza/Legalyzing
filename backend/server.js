@@ -11,6 +11,8 @@ const contactRoutes = require('./routes/contact');
 const generateRoutes = require('./routes/generate');
 const smartGenerateRoutes = require('./routes/smartGenerate');
 const constitutionalComplianceRoutes = require('./routes/constitutionalCompliance');
+const judgmentRoutes = require('./routes/judgments');
+const caseBuildingRoutes = require('./routes/caseBuilding');
 
 // Initialize Express app
 const app = express();
@@ -66,6 +68,8 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/generate', generateRoutes);
 app.use('/api/smart-generate', smartGenerateRoutes);
 app.use('/api/constitutional-compliance', constitutionalComplianceRoutes);
+app.use('/api/judgments', judgmentRoutes);
+app.use('/api/case-building', caseBuildingRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

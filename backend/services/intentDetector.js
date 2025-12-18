@@ -29,38 +29,61 @@ const DOCUMENT_TYPES = {
  */
 async function detectIntent(userMessage, conversationHistory = []) {
     try {
+        // PRE-CHECK: Exclude legal advice queries
+        const lowerMessage = userMessage.toLowerCase();
+        const legalHelpKeywords = [
+            'fir', 'nominated', 'arrested', 'bail', 'police', 'case filed',
+            'sued', 'court notice', 'lawyer', 'advocate', 'legal advice',
+            'what should i do', 'how to respond', 'guidance', 'help me',
+            'my friend', 'my client', 'accused', 'complaint', 'summon',
+            'constitutional', 'writ', 'petition', 'section', 'article',
+            'murder', 'theft', 'cheating', 'defamation', 'divorce', 'custody',
+            'maintenance', 'inheritance', 'property dispute', 'injunction'
+        ];
+        
+        // If message contains legal help keywords and NOT explicit generation phrases, skip detection
+        const hasLegalHelpIntent = legalHelpKeywords.some(kw => lowerMessage.includes(kw));
+        const hasExplicitGeneration = /\b(generate|create|draft|prepare|make)\s+(a|an|the|my)?\s*(agreement|contract|nda|deed|document)\b/i.test(userMessage);
+        
+        if (hasLegalHelpIntent && !hasExplicitGeneration) {
+            console.log('⚖️ Intent Detector: Legal help query detected, skipping document generation');
+            return {
+                success: true,
+                hasIntent: false,
+                documentType: null,
+                confidence: 0.95,
+                reasoning: 'User is seeking legal advice/help, not document generation'
+            };
+        }
+
         const systemPrompt = `You are an intent detection system for a legal document generation platform.
 
-Your task is to determine if the user wants to generate a legal document.
+IMPORTANT: Only detect document generation intent when user EXPLICITLY asks to create/generate a document.
 
-Look for phrases like:
-- "generate a [document type]"
-- "create a [document type]"
-- "I need a [document type]"
-- "make a [document type]"
-- "draft a [document type]"
-- "prepare a [document type]"
+DO NOT detect generation intent for:
+- Legal advice questions (e.g., "what should I do if...", "how to respond to...")
+- FIR/criminal case help
+- Court case guidance
+- General legal queries
+- Situation analysis
 
-Document types include:
-- House Rent Agreement / Rental Agreement / Lease Agreement
-- Employment Contract / Employment Agreement
-- NDA / Non-Disclosure Agreement
-- Partnership Agreement
-- Sale Agreement
-- Loan Agreement
-- Service Agreement
-- Freelance Contract
-- Consulting Agreement
+ONLY detect generation intent when user says things like:
+- "Generate a house rent agreement"
+- "Create an NDA for me"
+- "Draft an employment contract"
+- "I want to make a partnership deed"
 
-Return a JSON object with:
+Document types: house-rent, employment, nda, partnership, sale, loan, service, freelance, consulting
+
+Return JSON:
 {
   "hasIntent": true/false,
-  "documentType": "house-rent" | "employment" | "nda" | etc. (or null if no intent),
+  "documentType": "type" or null,
   "confidence": 0.0 to 1.0,
   "reasoning": "brief explanation"
 }
 
-If the user is just asking about documents or discussing them without requesting generation, set hasIntent to false.`;
+CRITICAL: When in doubt, set hasIntent to FALSE. Better to miss a generation request than to override legal advice.`;
 
         const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini', // Changed from gpt-4 to support JSON response format
