@@ -373,7 +373,7 @@ router.get('/conversations', protect, async (req, res) => {
             user: req.user.id,
             isActive: true
         })
-        .select('title createdAt updatedAt messages')
+        .select('title createdAt updatedAt messages metadata')
         .sort({ updatedAt: -1 });
 
         // Format conversations with message count
@@ -383,7 +383,8 @@ router.get('/conversations', protect, async (req, res) => {
             messageCount: conv.messages.length,
             lastMessage: conv.messages[conv.messages.length - 1]?.content.substring(0, 100),
             createdAt: conv.createdAt,
-            updatedAt: conv.updatedAt
+            updatedAt: conv.updatedAt,
+            metadata: conv.metadata
         }));
 
         res.status(200).json({
