@@ -90,6 +90,7 @@ const JudgmentSchema = new mongoose.Schema({
 
 // Text index for full-text search
 JudgmentSchema.index({
+    citation: 'text',
     caseTitle: 'text',
     summary: 'text',
     ratio: 'text'

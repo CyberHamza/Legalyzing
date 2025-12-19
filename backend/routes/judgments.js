@@ -4,13 +4,13 @@ const { protect } = require('../middleware/auth');
 const Judgment = require('../models/Judgment');
 const {
     runScrapingPipeline,
-    searchJudgments,
     getJudgmentContext
 } = require('../services/judgmentScraper');
+const { hybridSearch } = require('../services/searchService');
 
 /**
  * @route   GET /api/judgments/search
- * @desc    Search indexed Supreme Court judgments
+ * @desc    Search indexed Supreme Court judgments (Hybrid: Keyword + Vector)
  * @access  Private
  */
 router.get('/search', protect, async (req, res) => {
@@ -24,10 +24,11 @@ router.get('/search', protect, async (req, res) => {
             });
         }
 
-        const results = await searchJudgments(query, {
-            caseType,
-            year: year ? parseInt(year) : null
-        }, parseInt(limit));
+        const filters = {};
+        if (caseType) filters.caseType = caseType;
+        if (year) filters.year = parseInt(year);
+
+        const results = await hybridSearch(query, filters, parseInt(limit));
 
         res.json({
             success: true,

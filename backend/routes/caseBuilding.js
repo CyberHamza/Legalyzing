@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const CaseBuildingSession = require('../models/CaseBuildingSession');
 const openai = require('../config/openai');
+const verificationService = require('../services/verificationService');
 
 /**
  * @route   POST /api/case-building/sessions
@@ -359,6 +360,9 @@ Potential challenges and how to address them
 ## LEGAL ARGUMENTS
 Main arguments with law citations
 
+## LEGAL REASONING (The "Why")
+Analyze WHY these laws apply to these specific facts. Explain your reasoning path step-by-step.
+
 ## COUNTER-ARGUMENTS
 Anticipate opposing counsel's arguments
 
@@ -378,7 +382,10 @@ Immediate next steps for the lawyer`
             max_tokens: 3000
         });
 
-        const strategy = response.choices[0].message.content;
+        let strategy = response.choices[0].message.content;
+
+        // VERIFICATION: Check hallucinations
+        strategy = await verificationService.annotateStrategy(strategy);
 
         // Update session if provided
         if (sessionId) {
