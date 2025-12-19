@@ -84,7 +84,6 @@ const DocumentMessageBubble = ({ document, role, theme, mode }) => {
             elevation={0}
             sx={{
                 p: 2,
-                bgcolor: isUser ? 'primary.main' : 'background.paper',
                 // UI Fix: Ensure document name is always visible (black/dark text)
                 // If background is primary (blue), white text is usually fine, but user says it's invisible.
                 // Assuming primary.main might be light or changed, let's force a contrast or stick to request.

@@ -6,7 +6,7 @@ const {
     runScrapingPipeline,
     getJudgmentContext
 } = require('../services/judgmentScraper');
-const { hybridSearch } = require('../services/searchService');
+const { hybridSearch, intelligentSearch } = require('../services/searchService');
 
 /**
  * @route   GET /api/judgments/search
@@ -41,6 +41,42 @@ router.get('/search', protect, async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error searching judgments',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * @route   POST /api/judgments/intelligent-search
+ * @desc    Deep Search indexed Supreme Court judgments (Hybrid + AI re-ranking)
+ * @access  Private
+ */
+router.post('/intelligent-search', protect, async (req, res) => {
+    try {
+        const { query, caseType, filters = {}, limit = 5 } = req.body;
+
+        if (!query) {
+            return res.status(400).json({
+                success: false,
+                message: 'Search query is required'
+            });
+        }
+
+        const standardFilters = { ...filters };
+        if (caseType) standardFilters.caseType = caseType;
+
+        const results = await intelligentSearch(query, standardFilters, parseInt(limit));
+
+        res.json({
+            success: true,
+            data: results
+        });
+
+    } catch (error) {
+        console.error('Intelligent search error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error performing intelligent search',
             error: error.message
         });
     }

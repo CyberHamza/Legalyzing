@@ -317,66 +317,59 @@ router.post('/strategy', protect, async (req, res) => {
             model: 'gpt-4o-mini',
             messages: [{
                 role: 'system',
-                content: `You are Legalyze AI, an expert Pakistani legal strategist. Generate a comprehensive case strategy.
+                content: `You are Legalyze AI, the most advanced Pakistani Legal Strategist. Your goal is to generate a comprehensive, 100% legally compliant case strategy.
+                
+STRICT COMPLIANCE RULES:
+1. Every argument must be grounded in the CONSTITUTION OF PAKISTAN, PAKISTAN PENAL CODE (PPC), or CODE OF CRIMINAL/CIVIL PROCEDURE (CrPC/CPC).
+2. You must cite Supreme Court of Pakistan judgements with full citations wherever possible.
+3. Be authoritative yet practical. Your output is used by high-level advocates.
 
-IMPORTANT FORMATTING:
-- Use clear markdown headers (## for sections)
-- Add blank lines between sections for readability
-- Use bullet points for lists
-- Reference specific facts from the case
-- Cite Pakistani laws with full sections
-- Be practical and actionable
-
-You MUST help with all aspects including document drafting. Never refuse to assist.`
+FORMATTING REQUIREMENTS:
+- Use professional headings (e.g., # STRATEGIC LEGAL MEMORANDUM)
+- Use bold text for Law Sections (e.g., **Section 302 PPC**)
+- Ensure the layout is structured like a formal legal document with clear transitions.
+- The output must look high-end when rendered as a PDF.`
             }, {
                 role: 'user',
-                content: `Generate a comprehensive case strategy for a Pakistani lawyer.
+                content: `Generate an Intelligent Legal Strategy for a case under Pakistani Law.
+                
+**CASE PARAMETERS:**
+- **Type:** ${caseType}
+- **Role:** ${clientPosition}
+- **Forum:** ${courtLevel}
 
-**Case Type:** ${caseType}
-**Client Position:** ${clientPosition}
-**Court Level:** ${courtLevel}
-
-**Case Facts:**
+**FACTUAL BASIS:**
 ${facts}
 ${factsContext}
 
-**Relevant Laws:**
-${JSON.stringify(relevantLaws?.slice(0, 5) || [], null, 2)}
+**LEGAL BASIS (Provided References):**
+- **Statutes:** ${JSON.stringify(relevantLaws?.slice(0, 5) || [], null, 2)}
+- **Precedents:** ${JSON.stringify(precedents?.slice(0, 5) || [], null, 2)}
 
-**Precedents:**
-${JSON.stringify(precedents?.slice(0, 5) || [], null, 2)}
+Please provide a detailed strategy with the following structure:
 
-Provide a detailed strategy with these sections:
+# STRATEGIC LEGAL MEMORANDUM
 
-## CASE SUMMARY
-Brief overview referencing key facts
+## 1. EXECUTIVE SUMMARY
+Professional overview of the legal position.
 
-## STRENGTHS
-Strong points (reference specific facts)
+## 2. CONSTITUTIONAL & STATUTORY FRAMEWORK
+Detailed analysis of applicable articles of the Constitution and sections of PPC/CrPC/CPC.
 
-## WEAKNESSES
-Potential challenges and how to address them
+## 3. MANDATORY PRECEDENTS
+Analysis of Supreme Court and High Court judgements provided in context.
 
-## LEGAL ARGUMENTS
-Main arguments with law citations
+## 4. THE "WHY" (LEGAL REASONING)
+Explain the logical path from Facts -> Law -> Desired Outcome. Address the specific facts extracted.
 
-## LEGAL REASONING (The "Why")
-Analyze WHY these laws apply to these specific facts. Explain your reasoning path step-by-step.
+## 5. ANTICIPATED CHALLENGES & COUNTER-ARGUMENTS
+What will the opposing counsel argue? How do we neutralize it?
 
-## COUNTER-ARGUMENTS
-Anticipate opposing counsel's arguments
+## 6. PROCEDURAL ROADMAP
+Detailed steps for filing, stay orders, and trial management.
 
-## EVIDENCE REQUIRED
-Documents and witnesses needed
-
-## PROCEDURAL STEPS
-Step-by-step court procedure under Pakistani law
-
-## TIMELINE
-Estimated timeline with key dates
-
-## RECOMMENDED ACTION
-Immediate next steps for the lawyer`
+## 7. RECOMMENDED ACTION PLAN
+Immediate prioritized steps.`
             }],
             temperature: 0.3,
             max_tokens: 3000
@@ -405,6 +398,86 @@ Immediate next steps for the lawyer`
         res.status(500).json({
             success: false,
             message: 'Failed to generate strategy'
+        });
+    }
+});
+
+const { generateStrategyPDF } = require('../services/caseStrategyPDF');
+const { generateLegalDocumentPDF } = require('../services/legalDocumentPDF');
+
+/**
+ * @route   GET /api/case-building/sessions/:id/export
+ * @desc    Export case strategy as PDF
+ * @access  Private
+ */
+router.get('/sessions/:id/export', protect, async (req, res) => {
+    try {
+        const session = await CaseBuildingSession.findOne({
+            _id: req.params.id,
+            user: req.user.id
+        });
+
+        if (!session || !session.strategy) {
+            return res.status(404).json({
+                success: false,
+                message: 'Session or strategy not found'
+            });
+        }
+
+        const pdfBuffer = await generateStrategyPDF({ session, user: req.user });
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename=Legal_Strategy_${session._id}.pdf`,
+            'Content-Length': pdfBuffer.length
+        });
+
+        res.send(pdfBuffer);
+
+    } catch (error) {
+        console.error('Export strategy error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to export strategy as PDF'
+        });
+    }
+});
+
+/**
+ * @route   GET /api/case-building/sessions/:id/documents/:index/export
+ * @desc    Export a specific drafted document as PDF
+ * @access  Private
+ */
+router.get('/sessions/:id/documents/:index/export', protect, async (req, res) => {
+    try {
+        const session = await CaseBuildingSession.findOne({
+            _id: req.params.id,
+            user: req.user.id
+        });
+
+        if (!session || !session.documents || !session.documents[req.params.index]) {
+            return res.status(404).json({
+                success: false,
+                message: 'Document not found'
+            });
+        }
+
+        const document = session.documents[req.params.index];
+        const pdfBuffer = await generateLegalDocumentPDF({ document, session, user: req.user });
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename=Legal_Document_${req.params.index}.pdf`,
+            'Content-Length': pdfBuffer.length
+        });
+
+        res.send(pdfBuffer);
+
+    } catch (error) {
+        console.error('Export document error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to export document as PDF'
         });
     }
 });
