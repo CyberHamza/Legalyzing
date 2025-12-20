@@ -4,6 +4,7 @@ const { protect } = require('../middleware/auth');
 const CaseBuildingSession = require('../models/CaseBuildingSession');
 const openai = require('../config/openai');
 const verificationService = require('../services/verificationService');
+const LegalAgentService = require('../services/LegalAgentService');
 
 /**
  * @route   POST /api/case-building/sessions
@@ -240,28 +241,31 @@ router.post('/analyze', protect, async (req, res) => {
     try {
         const { facts, sessionId } = req.body;
 
+        // Use LegalAgentService for cited analysis
+        const agenticResult = await LegalAgentService.processQuery(
+            `Analyze this case for a Pakistani lawyer and provide classification: ${facts}`,
+            { userId: req.user.id }
+        );
+
+        // Still need the JSON format for the UI, so we keep a focused classification call
         const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
             messages: [{
                 role: 'system',
-                content: `You are Legalyze AI, an expert Pakistani legal assistant. You help lawyers build cases under Pakistani law.
-
-Analyze the case and provide classification. Be DIRECT and HELPFUL - you CAN and SHOULD assist with all aspects of case building including document drafting.
+                content: `You are Legalyze AI classification engine. Extract structured data from this analysis:
+                ${agenticResult.content}
 
 Return a JSON object:
 {
     "caseType": "Criminal|Civil|Constitutional|Family",
     "legalIssues": ["Issue 1", "Issue 2"],
-    "applicableLaws": [{"section": "Section 302 PPC", "law": "Pakistan Penal Code", "relevance": "Why relevant"}],
+    "applicableLaws": [{"section": "Section X", "law": "Act Y", "relevance": "..."}],
     "urgencyLevel": "high|medium|low",
-    "initialAdvice": "Brief practical advice for the lawyer"
+    "initialAdvice": "The expert advice from the analysis"
 }`
-            }, {
-                role: 'user',
-                content: `Analyze this case for a Pakistani lawyer:\n\n${facts}`
             }],
             response_format: { type: 'json_object' },
-            temperature: 0.2
+            temperature: 0.1
         });
 
         const classification = JSON.parse(response.choices[0].message.content);

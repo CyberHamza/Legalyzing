@@ -12,6 +12,7 @@ const { detectIntent, getDocumentTypeName } = require('../services/intentDetecto
 const { generateFieldStatusMessage, mapFactsToFields } = require('../services/fieldMapper');
 const { getPakistanSystemPrompt, detectCaseType } = require('../services/pakistanLegalPrompts');
 const { getJudgmentContext } = require('../services/judgmentScraper');
+const LegalAgentService = require('../services/LegalAgentService');
 
 // @route   POST /api/chat
 // @desc    Send message and get AI response
@@ -103,148 +104,17 @@ router.post('/', protect, async (req, res) => {
         }
         // -----------------------------------
 
-        if (conversationId || (documentIds && documentIds.length > 0)) {
-            console.log('📄 Processing RAG for Chat:', conversationId);
-            
-            let contextParts = [];
-
-            // 1. Fetch Document Metadata & Summaries (High-Level Context)
-            // This fixes the "Summarize this" issue by providing guaranteed context even if vector search fails.
-            if (documentIds && documentIds.length > 0) {
-                const documents = await Document.find({ _id: { $in: documentIds } })
-                    .select('filename summary metadata docType');
-
-                if (documents.length > 0) {
-                    let summaryContext = '=== DOCUMENT OVERVIEWS (Guaranteed Context) ===\n';
-                    documents.forEach(doc => {
-                        summaryContext += `\n--- Document: ${doc.filename} ---\n`;
-                        summaryContext += `Type: ${doc.docType || 'General Legal Document'}\n`;
-                        
-                        if (doc.metadata) {
-                            if (doc.metadata.parties) summaryContext += `Parties: ${JSON.stringify(doc.metadata.parties)}\n`;
-                            if (doc.metadata.court) summaryContext += `Court: ${doc.metadata.court.name || 'N/A'}\n`;
-                            if (doc.metadata.dates) summaryContext += `Dates: ${JSON.stringify(doc.metadata.dates)}\n`;
-                        }
-
-                        if (doc.summary) {
-                            summaryContext += `Summary of Facts: ${doc.summary.facts || 'Not available'}\n`;
-                            if (doc.summary.legalIssues?.length) {
-                                summaryContext += `Key Legal Issues: ${doc.summary.legalIssues.join(', ')}\n`;
-                            }
-                            if (doc.summary.reliefSought) {
-                                summaryContext += `Relief Sought: ${doc.summary.reliefSought}\n`;
-                            }
-                        }
-                    });
-                    summaryContext += '=== END OVERVIEWS ===\n\n';
-                    contextParts.push(summaryContext);
-                    hasDocumentContext = true; // We have context!
-                }
-            }
-
-            // 2. Vector Search (Specific Context)
-            const queryEmbedding = await generateEmbedding(message);
-            const relevantChunks = await pineconeService.queryVectors(
-                queryEmbedding,
-                8, // top K results
-                req.user.id,
-                documentIds,
-                conversationId
-            );
-
-            console.log(`🔍 Found ${relevantChunks.length} relevant chunks from Pinecone`);
-
-            if (relevantChunks.length > 0) {
-                let vectorContext = '=== RELEVANT EXCERPTS (Vector Search) ===\n';
-                vectorContext += 'The following distinct passages were found via semantic search:\n\n';
-                
-                relevantChunks.forEach((chunk, index) => {
-                    vectorContext += `--- Excerpt ${index + 1} (from "${chunk.documentName}") ---\n`;
-                    vectorContext += `${chunk.text}\n\n`;
-                });
-                
-                contextParts.push(vectorContext);
-                hasDocumentContext = true;
-            }
-
-            if (hasDocumentContext) {
-                context = contextParts.join('\n');
-            }
-        }
-
-        // Check for pending documents
-        let hasPendingDocs = false;
-        if (documentIds && documentIds.length > 0) {
-            const pendingCount = await Document.countDocuments({
-                _id: { $in: documentIds },
-                processed: false
-            });
-            if (pendingCount > 0) {
-                 hasPendingDocs = true;
-                 console.log('⚠️ Request references pending documents');
-            }
-        }
-
-        // Detect case type from user message for specialized guidance
-        const detectedCaseType = detectCaseType(message);
-        if (detectedCaseType) {
-            console.log(`⚖️ Detected case type: ${detectedCaseType.toUpperCase()}`);
-        }
-
-        // Prepare messages for OpenAI with Pakistan-specific legal prompts
-        const messages = [
-            {
-                role: 'system',
-                content: getPakistanSystemPrompt({
-                    hasDocumentContext,
-                    hasPendingDocs,
-                    caseType: detectedCaseType
-                })
-            }
-        ];
-
-        // Add document context as a separate system message if available
-        if (context) {
-            messages.push({
-                role: 'system',
-                content: context
-            });
-        }
-
-        // Add Supreme Court judgment context for legal queries
-        try {
-            if (detectedCaseType) {
-                const judgmentContext = await getJudgmentContext(message, detectedCaseType);
-                if (judgmentContext) {
-                    messages.push({
-                        role: 'system',
-                        content: judgmentContext
-                    });
-                    console.log(`📚 Added Supreme Court precedent context for ${detectedCaseType} case`);
-                }
-            }
-        } catch (judgmentErr) {
-            console.warn('Could not fetch judgment context:', judgmentErr.message);
-            // Non-critical, continue without judgment context
-        }
-
-        // Add conversation history (last 10 messages for context)
-        const recentMessages = conversation.messages.slice(-10);
-        messages.push(...recentMessages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-        })));
-
-        // Get AI response with optimized parameters
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages: messages,
-            temperature: 0.3, // Lower for more focused, factual responses
-            max_tokens: 1500, // Increased for detailed document-based answers
-            top_p: 0.9
+        // === AGENTIC RAG FLOW ===
+        console.log('⚖️ Executing Agentic legal research...');
+        const agenticResult = await LegalAgentService.processQuery(message, {
+            conversationId,
+            documentIds,
+            userId: req.user.id,
+            history: conversation.messages.slice(-10)
         });
 
-        const aiResponse = completion.choices[0].message.content;
+        const aiResponse = agenticResult.content;
+        // =========================
 
         // Add AI response to conversation
         conversation.messages.push({

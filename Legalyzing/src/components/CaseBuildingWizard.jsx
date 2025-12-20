@@ -113,6 +113,7 @@ const CaseBuildingWizard = ({ onClose }) => {
     const [statusMessage, setStatusMessage] = useState('');
     const [searchSummary, setSearchSummary] = useState('');
     const [stepAck, setStepAck] = useState({ show: false, message: '' });
+    const [analysisComplete, setAnalysisComplete] = useState(false);
 
     // --- History Management ---
     const fetchSessions = async () => {
@@ -289,25 +290,11 @@ const CaseBuildingWizard = ({ onClose }) => {
                 };
                 
                 setCaseData(newData);
-                
-                await fetch(`${API_BASE}/api/case-building/sessions/${currentSessionId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
-                    body: JSON.stringify({
-                        extractedFacts,
-                        classification: analysis,
-                        currentStep: 1
-                    })
-                });
-
-                setStepAck({ show: true, message: 'Analysis Complete! Auto-advancing...' });
+                setAnalysisComplete(true);
+                setStepAck({ show: true, message: 'Analysis Complete! You may now proceed to the next step.' });
                 setTimeout(() => {
                     setStepAck({ show: false, message: '' });
-                    setActiveStep(1);
-                }, 1500);
+                }, 3000);
             }
         } catch (err) {
             setError('Failed to analyze case. Please try again.');
@@ -718,16 +705,29 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                         </FormControl>
                                     </Grid>
                                     <Grid item xs={12} md={4}>
-                                        <Button
-                                            fullWidth
-                                            variant="contained"
-                                            size="large"
-                                            onClick={handleAnalysis}
-                                            disabled={loading || !caseData.facts.trim()}
-                                            sx={{ height: '56px', borderRadius: 2 }}
-                                        >
-                                            {loading ? <CircularProgress size={24} color="inherit" /> : 'Start Analysis'}
-                                        </Button>
+                                        <Stack direction="row" spacing={2} sx={{ height: '56px' }}>
+                                            <Button
+                                                fullWidth
+                                                variant="contained"
+                                                size="large"
+                                                onClick={handleAnalysis}
+                                                disabled={loading || !caseData.facts.trim()}
+                                                sx={{ 
+                                                    borderRadius: '50px', 
+                                                    height: '60px',
+                                                    fontSize: '1.1rem',
+                                                    fontWeight: 'bold',
+                                                    bgcolor: analysisComplete ? 'success.main' : 'primary.main',
+                                                    '&:hover': {
+                                                        bgcolor: analysisComplete ? 'success.dark' : 'primary.dark',
+                                                    },
+                                                    boxShadow: analysisComplete ? '0 0 20px rgba(76, 175, 80, 0.4)' : 4
+                                                }}
+                                            >
+                                                {loading ? <CircularProgress size={24} color="inherit" /> : 
+                                                 analysisComplete ? <><CheckCircle sx={{ mr: 1 }} /> Analysis Complete</> : 'Start Case Analysis'}
+                                            </Button>
+                                        </Stack>
                                     </Grid>
                                 </Grid>
                             </Box>
@@ -834,9 +834,17 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                                     size="large"
                                                     startIcon={<Search />} 
                                                     onClick={handleFindLaws}
-                                                    sx={{ borderRadius: '50px', px: 10, py: 2, fontSize: '1.1rem', fontWeight: 'bold', boxShadow: 4 }}
+                                                    sx={{ 
+                                                        borderRadius: '50px', 
+                                                        px: 10, 
+                                                        py: 2, 
+                                                        fontSize: '1.2rem', 
+                                                        fontWeight: 'bold', 
+                                                        boxShadow: '0 10px 30px rgba(25, 118, 210, 0.3)',
+                                                        '&:hover': { transform: 'scale(1.02)', boxShadow: '0 15px 40px rgba(25, 118, 210, 0.4)' }
+                                                    }}
                                                 >
-                                                    Commence Legal Scan
+                                                    Initiate Statutory Intelligence Scan
                                                 </Button>
                                             </Paper>
                                         </motion.div>
@@ -848,21 +856,50 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                         >
                                             <Grid container spacing={3}>
                                                 {loading ? (
-                                                    <Grid item xs={12} sx={{ textAlign: 'center', py: 10 }}>
-                                                        <CircularProgress size={60} thickness={4} />
-                                                        <Typography variant="h6" sx={{ mt: 3, fontWeight: 'medium' }} color="primary">
-                                                            {statusMessage || 'Analyzing legal corpus...'}
+                                                    <Grid item xs={12} sx={{ textAlign: 'center', py: 15 }}>
+                                                        <Box sx={{ position: 'relative', display: 'inline-flex', mb: 4 }}>
+                                                            <CircularProgress size={100} thickness={2} sx={{ color: 'rgba(25, 118, 210, 0.2)' }} />
+                                                            <CircularProgress
+                                                                size={100}
+                                                                thickness={4}
+                                                                sx={{
+                                                                    color: 'primary.main',
+                                                                    position: 'absolute',
+                                                                    left: 0,
+                                                                    [`& .MuiCircularProgress-circle`]: { strokeLinecap: 'round' },
+                                                                }}
+                                                            />
+                                                            <Gavel sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: 40, color: 'primary.main' }} />
+                                                        </Box>
+                                                        <Typography variant="h5" sx={{ fontWeight: '800', letterSpacing: 1 }} color="primary">
+                                                            {statusMessage || 'Scanning Global Legal Library...'}
+                                                        </Typography>
+                                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                                            Cross-referencing Constitution, PPC, CrPC, and local statutes...
                                                         </Typography>
                                                     </Grid>
                                                 ) : (
                                                     <>
                                                         <Grid item xs={12}>
-                                                            <Paper sx={{ p: 2, bgcolor: 'success.main', color: 'white', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, shadow: 3 }}>
-                                                                <CheckCircle />
-                                                                <Typography variant="subtitle1" fontWeight="bold">
-                                                                    Intelligence Scan Complete: {caseData.relevantLaws.length} Statutes Identified
-                                                                </Typography>
-                                                            </Paper>
+                                                            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
+                                                                <Paper sx={{ 
+                                                                    p: 3, 
+                                                                    bgcolor: 'success.main', 
+                                                                    color: 'white', 
+                                                                    borderRadius: 4, 
+                                                                    display: 'flex', 
+                                                                    alignItems: 'center', 
+                                                                    justifyContent: 'center',
+                                                                    gap: 2, 
+                                                                    boxShadow: '0 10px 30px rgba(76, 175, 80, 0.3)',
+                                                                    mb: 2
+                                                                }}>
+                                                                    <CheckCircle sx={{ fontSize: 32 }} />
+                                                                    <Typography variant="h6" fontWeight="900">
+                                                                        SCAN COMPLETE: {caseData.relevantLaws.length} Authoritative Statutes Secured
+                                                                    </Typography>
+                                                                </Paper>
+                                                            </motion.div>
                                                         </Grid>
                                                         
                                                         {caseData.relevantLaws.map((law, i) => (
@@ -951,12 +988,50 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                     </Paper>
                                 ) : (
                                     <Stack spacing={3}>
-                                        <Paper sx={{ p: 2, bgcolor: 'success.main', color: 'white', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, shadow: 3 }}>
-                                            <CheckCircle fontSize="small" />
-                                            <Typography variant="subtitle2" fontWeight="bold">
-                                                {statusMessage || `Intelligent Search Complete: Found ${caseData.precedents.length} Mandatory Precedents.`}
-                                            </Typography>
-                                        </Paper>
+                                        {loading ? (
+                                            <Box sx={{ textAlign: 'center', py: 15, bgcolor: 'rgba(156, 39, 176, 0.04)', borderRadius: 4, border: '1px solid', borderColor: 'secondary.light' }}>
+                                                <Box sx={{ position: 'relative', display: 'inline-flex', mb: 4 }}>
+                                                    <CircularProgress size={100} thickness={2} sx={{ color: 'rgba(156, 39, 176, 0.2)' }} color="secondary" />
+                                                    <CircularProgress
+                                                        size={100}
+                                                        thickness={4}
+                                                        color="secondary"
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            left: 0,
+                                                            [`& .MuiCircularProgress-circle`]: { strokeLinecap: 'round' },
+                                                        }}
+                                                    />
+                                                    <Balance sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: 40, color: 'secondary.main' }} />
+                                                </Box>
+                                                <Typography variant="h5" sx={{ fontWeight: '800', letterSpacing: 1 }} color="secondary">
+                                                    {statusMessage || 'Querying Supreme Court Archive...'}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                                    Applying semantic filters to 50,000+ legal precedents...
+                                                </Typography>
+                                            </Box>
+                                        ) : (
+                                            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
+                                                <Paper sx={{ 
+                                                    p: 3, 
+                                                    bgcolor: 'secondary.main', 
+                                                    color: 'white', 
+                                                    borderRadius: 4, 
+                                                    display: 'flex', 
+                                                    alignItems: 'center', 
+                                                    justifyContent: 'center',
+                                                    gap: 2, 
+                                                    boxShadow: '0 10px 30px rgba(156, 39, 176, 0.3)',
+                                                    mb: 2
+                                                }}>
+                                                    <CheckCircle sx={{ fontSize: 32 }} />
+                                                    <Typography variant="h6" fontWeight="900">
+                                                        PRECEDENT SEARCH COMPLETE: {caseData.precedents.length} Key Judgments Secured
+                                                    </Typography>
+                                                </Paper>
+                                            </motion.div>
+                                        )}
                                         
                                         {searchSummary && (
                                             <Paper sx={{ p: 3, bgcolor: 'primary.light', color: 'primary.contrastText', borderRadius: 3, borderLeft: '6px solid', borderColor: 'primary.main' }}>

@@ -16,24 +16,29 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  */
 async function matchSentenceToConstitution(sentence, topK = 5) {
     try {
-        // Query Pinecone for semantically similar constitutional provisions
-        const results = await queryConstitutionWithProvenance(sentence.text, topK);
+        const { generateEmbedding } = require('../utils/documentProcessor');
+        const { queryVectorsWithFilter } = require('./pineconeService');
+        
+        const queryEmbedding = await generateEmbedding(sentence.text);
+        
+        // Query Authoritative Laws namespace for semantically similar provisions
+        const results = await queryVectorsWithFilter(
+            queryEmbedding, 
+            topK, 
+            { isAuthoritative: true }, 
+            'authoritative-laws'
+        );
         
         return results.map(match => ({
             constitutionText: match.metadata.text,
-            article: match.metadata.articleNumber,
-            articleHeading: match.metadata.articleHeading,
-            part: match.metadata.part,
-            partName: match.metadata.partName,
-            startChar: match.metadata.startChar,
-            endChar: match.metadata.endChar,
-            lineStart: match.metadata.lineStart,
-            lineEnd: match.metadata.lineEnd,
+            article: match.metadata.sectionNumber || match.metadata.articleNumber || "N/A",
+            articleHeading: match.metadata.shortName,
+            source: match.metadata.source,
             similarity_score: match.score,
             pineconeId: match.id
         }));
     } catch (error) {
-        console.error('Error matching sentence to constitution:', error);
+        console.error('Error matching sentence to authoritative laws:', error);
         return [];
     }
 }
