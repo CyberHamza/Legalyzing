@@ -133,7 +133,7 @@ const DocumentMessageBubble = ({ document, role, theme, mode }) => {
                         {document.filename || document.fileName || 'Document'}
                     </Typography>
                     <Typography variant="caption" display="block" sx={{ opacity: 0.8, mb: 1.5, color: 'text.secondary' }}>
-                        {document.fileSize ? (document.fileSize / 1024).toFixed(1) + ' KB' : 'Unknown size'} • {new Date(document.createdAt || document.uploadDate || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {document.fileSize ? (document.fileSize / 1024).toFixed(1) + ' KB' : 'Unknown size'} • {new Date(document.createdAt || document.uploadedAt || document.uploadDate || Date.now()).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
                     </Typography>
                     
                     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1515,7 +1515,7 @@ const ChatInterface = () => {
                                                             {doc.filename}
                                                         </Typography>
                                                         <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                                                            {new Date(doc.uploadDate).toLocaleDateString()}
+                                                            {new Date(doc.uploadedAt || doc.createdAt || doc.uploadDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                                                         </Typography>
                                                     </Box>
                                                     <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -1613,7 +1613,7 @@ const ChatInterface = () => {
                                                                 {doc.fileName}
                                                             </Typography>
                                                             <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                                                                {new Date(doc.createdAt).toLocaleDateString()}
+                                                                {new Date(doc.createdAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                                                             </Typography>
                                                         </Box>
                                                     </Box>
