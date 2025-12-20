@@ -470,9 +470,9 @@ function addConfidenceSummary(doc, data) {
         .font('Helvetica')
         .text(`Total snippets reviewed: ${confidence.total_snippets_reviewed}`);
     
-    doc.text(`High confidence (>=85): ${confidence.high_confidence}`);
-    doc.text(`Medium confidence (70-84): ${confidence.medium_confidence}`);
-    doc.text(`Low confidence (<70): ${confidence.low_confidence}`);
+    doc.text(`High confidence (>=85): ${confidence.high_confidence_findings || 0}`);
+    doc.text(`Medium confidence (70-84): ${confidence.partial_pending_findings || 0}`);
+    doc.text(`Low confidence (<70): ${confidence.non_compliant_findings || 0}`);
     
     doc.moveDown();
     doc.fontSize(11)

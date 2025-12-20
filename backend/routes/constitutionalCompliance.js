@@ -8,7 +8,7 @@ const ComplianceCheck = require('../models/ComplianceCheck');
 const Conversation = require('../models/Conversation');
 const { extractText } = require('../utils/documentProcessor');
 const { extractSentencesWithProvenance } = require('../services/sentenceExtractor');
-const { processDocumentCompliance } = require('../services/complianceMatchingEngine');
+const { processThematicCompliance: processDocumentCompliance } = require('../services/complianceMatchingEngine'); // Aliased for minimal disruption
 const { generateComplianceReport, generateStrictMarkdown } = require('../services/complianceReportGenerator');
 const { generatePDFReport } = require('../services/pdfReportGenerator');
 const crypto = require('crypto');
@@ -96,13 +96,12 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
 
         console.log(`   ✅ Extracted ${documentText.length} characters`);
 
-        // Step 3: Extract sentences with provenance
-        console.log('   ✂️  Extracting sentences with metadata...');
+        // Step 3: Extract sentences (kept for backward compatibility with the report generator)
+        console.log('   ✂️  Extracting sentences for report metadata...');
         const sentences = extractSentencesWithProvenance(documentText);
-        console.log(`   ✅ Extracted ${sentences.length} sentences`);
 
-        // Step 4: Process compliance (sentence-level matching)
-        console.log('   🔍 Performing sentence-level compliance matching...');
+        // Step 4: High-speed Thematic Compliance Scan (Rapid Scan V2)
+        console.log('   🔍 Performing high-speed thematic compliance matching...');
         const documentMeta = {
             name: req.file.originalname,
             s3Path: s3Url,
@@ -113,10 +112,8 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
             timestamp: new Date().toISOString()
         };
 
-        const mappings = await processDocumentCompliance(sentences, documentMeta, {
-            maxSentences: 50, // Limit for performance
-            batchSize: 3
-        });
+        const mappings = await processDocumentCompliance(documentText, documentMeta); 
+
 
         // Step 5: Generate comprehensive report
         console.log('   📝 Generating comprehensive compliance report...');

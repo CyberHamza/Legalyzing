@@ -744,21 +744,10 @@ const ChatInterface = () => {
                                         if (conversationResponse.success) {
                                             const conv = conversationResponse.data;
                                             
-                                            // Generate formatted report
-                                            const reportContent = formatComplianceReport(response.data, file.name);
-                                            
-                                            // Add report as a new message to the conversation
-                                            const updatedMessages = [
-                                                ...conv.messages,
-                                                {
-                                                    role: 'assistant',
-                                                    content: reportContent
-                                                }
-                                            ];
-                                            
                                             // Set current conversation
                                             setActiveChat(conv);
-                                            setMessages(updatedMessages);
+                                            // conv.messages already contains the report in strictMarkdown from backend
+                                            setMessages(conv.messages);
                                             
                                             // Refresh conversations list
                                             fetchConversations();
@@ -960,12 +949,13 @@ const ChatInterface = () => {
                             }}
                         >
                             <Box
-                                sx={{
-                                    maxWidth: '75%',
-                                    display: 'flex',
-                                    gap: 1,
-                                    flexDirection: message.role === 'user' ? 'row-reverse' : 'row'
-                                }}
+                                    sx={{
+                                        maxWidth: '100%',
+                                        display: 'flex',
+                                        gap: 1,
+                                        flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
+                                        minWidth: 0 // Allow container to shrink
+                                    }}
                             >
                                 <Avatar
                                     sx={{
@@ -1055,21 +1045,56 @@ const ChatInterface = () => {
                                                     color: message.role === 'user' ? 'white' : 'text.primary',
                                                     borderRadius: '2px',
                                                     borderTopRightRadius: message.role === 'user' ? 0 : '2px',
-                                                    borderTopLeftRadius: message.role === 'user' ? '2px' : 0
+                                                    borderTopLeftRadius: message.role === 'user' ? '2px' : 0,
+                                                    wordBreak: 'break-word',
+                                                    overflowWrap: 'break-word',
+                                                    minWidth: 0,
+                                                    maxWidth: '100%'
                                                 }}
                                             >
                                                 <Box sx={{ '& p': { margin: 0 }, '& p + p': { marginTop: 1 } }}>
                                                     <ReactMarkdown
                                                         components={{
-                                                            p: ({node, ...props}) => <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.6 }} {...props} />,
-                                                            strong: ({node, ...props}) => <strong style={{ fontWeight: 700 }} {...props} />,
-                                                            em: ({node, ...props}) => <em {...props} />,
-                                                            ul: ({node, ...props}) => <ul style={{ margin: '8px 0', paddingLeft: '20px' }} {...props} />,
-                                                            ol: ({node, ...props}) => <ol style={{ margin: '8px 0', paddingLeft: '20px' }} {...props} />,
-                                                            li: ({node, ...props}) => <li style={{ marginBottom: '4px' }} {...props} />,
-                                                            h2: ({node, ...props}) => <Typography variant="h6" sx={{ fontWeight: 700, mt: 2, mb: 1 }} {...props} />,
-                                                            h3: ({node, ...props}) => <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1.5, mb: 0.5 }} {...props} />,
+                                                            p: ({node, ...props}) => <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.6, wordBreak: 'break-word' }} {...props} />,
+                                                            strong: ({node, ...props}) => <strong style={{ fontWeight: 700, wordBreak: 'break-word' }} {...props} />,
+                                                            em: ({node, ...props}) => <em style={{ wordBreak: 'break-word' }} {...props} />,
+                                                            ul: ({node, ...props}) => <ul style={{ margin: '8px 0', paddingLeft: '20px', wordBreak: 'break-word' }} {...props} />,
+                                                            ol: ({node, ...props}) => <ol style={{ margin: '8px 0', paddingLeft: '20px', wordBreak: 'break-word' }} {...props} />,
+                                                            li: ({node, ...props}) => <li style={{ marginBottom: '4px', wordBreak: 'break-word' }} {...props} />,
+                                                            h2: ({node, ...props}) => <Typography variant="h6" sx={{ fontWeight: 700, mt: 2, mb: 1, wordBreak: 'break-word' }} {...props} />,
+                                                            h3: ({node, ...props}) => <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1.5, mb: 0.5, wordBreak: 'break-word' }} {...props} />,
                                                             hr: ({node, ...props}) => <Divider sx={{ my: 1.5 }} {...props} />,
+                                                            code: ({node, inline, ...props}) => (
+                                                                <code 
+                                                                    style={{ 
+                                                                        background: 'rgba(0,0,0,0.1)', 
+                                                                        padding: '2px 4px', 
+                                                                        borderRadius: '4px',
+                                                                        fontSize: '0.85rem',
+                                                                        whiteSpace: 'pre-wrap',
+                                                                        wordBreak: 'break-word'
+                                                                    }} 
+                                                                    {...props} 
+                                                                />
+                                                            ),
+                                                            pre: ({node, ...props}) => (
+                                                                <pre 
+                                                                    style={{ 
+                                                                        background: 'rgba(0,0,0,0.05)', 
+                                                                        padding: '12px', 
+                                                                        borderRadius: '4px', 
+                                                                        overflowX: 'hidden',
+                                                                        whiteSpace: 'pre-wrap',
+                                                                        wordBreak: 'break-word'
+                                                                    }} 
+                                                                    {...props} 
+                                                                />
+                                                            ),
+                                                            table: ({node, ...props}) => (
+                                                                <Box sx={{ width: '100%', overflowX: 'auto', my: 2 }}>
+                                                                    <table style={{ width: '100%', borderCollapse: 'collapse' }} {...props} />
+                                                                </Box>
+                                                            )
                                                         }}
                                                     >
                                                         {message.content}
@@ -1184,11 +1209,11 @@ const ChatInterface = () => {
                                                         borderRadius: '2px',
                                                         fontSize: '0.7rem',
                                                         bgcolor: message.role === 'user' 
-                                                            ? 'rgba(255, 255, 255, 0.2)' 
+                                                            ? 'rgba(255, 255, 255, 0.9)' 
                                                             : 'action.hover',
-                                                        color: message.role === 'user' ? 'white' : 'text.primary',
+                                                        color: 'text.primary',
                                                         '& .MuiChip-icon': {
-                                                            color: message.role === 'user' ? 'white' : 'primary.main',
+                                                            color: 'primary.main',
                                                             fontSize: '0.9rem'
                                                         }
                                                     }}
@@ -1277,7 +1302,8 @@ const ChatInterface = () => {
                                                 py: 0.5,
                                                 bgcolor: file.processing ? 'rgba(255, 193, 7, 0.1)' : 'default', // Slight yellow tint for processing
                                                 borderColor: file.processing ? 'warning.main' : 'default',
-                                                border: file.processing ? '1px solid' : 'default'
+                                                border: file.processing ? '1px solid' : 'default',
+                                                '& .MuiChip-label': { color: 'text.primary' }
                                             }}
                                         />
                                     ))}
@@ -1407,7 +1433,7 @@ const ChatInterface = () => {
                                     const docChatId = doc.chatId || (doc.metadata && doc.metadata.chatId);
                                     // Match by explicit chatId OR if doc ID is in conversation's documentIds
                                     return (docChatId === chatId) || (activeChat.documentIds && activeChat.documentIds.includes(doc.id || doc._id));
-                                }).map((doc) => (
+                                }).map((doc, index) => (
                                     <ListItem
                                         key={(doc._id || doc.id) ? `${doc._id || doc.id}-${index}` : `doc-${index}`}
                                         disablePadding

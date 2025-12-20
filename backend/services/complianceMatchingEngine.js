@@ -312,11 +312,125 @@ async function processDocumentCompliance(sentences, uploadedDocMeta = {}, option
     return mappings;
 }
 
+/**
+ * Divide document into thematic chunks for high-speed analysis
+ */
+async function thematicChunking(text, maxChunks = 7) {
+    try {
+        const prompt = `Divide this legal document into ${maxChunks} distinct thematic sections for constitutional analysis. 
+        Focus on sections that likely carry legal obligations, procedural directives, or fundamental rights implications.
+        
+        TEXT:
+        ${text.substring(0, 15000)}
+        
+        Return ONLY a JSON object with a 'sections' array:
+        {
+          "sections": [
+            { "title": "Section Title", "content": "Exact content snippet from the document" }
+          ]
+        }`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+                { role: 'system', content: 'You are a legal document architect expert in Pakistani law.' },
+                { role: 'user', content: prompt }
+            ],
+            response_format: { type: "json_object" }
+        });
+
+        const data = JSON.parse(response.choices[0].message.content);
+        return data.sections || [];
+    } catch (error) {
+        console.error('Error in thematic chunking:', error);
+        // Fallback: simple text splitting if AI fails
+        return [{ title: "Document Overview", content: text.substring(0, 5000) }];
+    }
+}
+
+/**
+ * High-speed thematic compliance analysis (Rapid Scan V2)
+ */
+async function processThematicCompliance(documentText, documentMeta = {}) {
+    console.log('⚡ Starting high-speed thematic compliance scan...');
+    const startTime = Date.now();
+    
+    // 1. Chunk the document
+    const sections = await thematicChunking(documentText);
+    console.log(`📊 Divided document into ${sections.length} thematic sections.`);
+
+    // 2. Process all sections in parallel (No sequential delays!)
+    const mappingPromises = sections.map(async (section, idx) => {
+        // Find best constitutional match for this chunk
+        const matches = await matchSentenceToConstitution({ text: section.content }, 3);
+        if (matches.length === 0) return null;
+
+        const bestMatch = matches[0];
+        
+        // Detailed compliance analysis for this chunk
+        const analysisPrompt = `Critically analyze this document section for compliance with the Constitution of Pakistan.
+        
+        SECTION: "${section.title}"
+        TEXT: "${section.content}"
+        
+        CONSTITUTIONAL PROVISION:
+        Article ${bestMatch.article}: ${bestMatch.articleHeading}
+        "${bestMatch.constitutionText}"
+        
+        TASK:
+        1. Decide: YES (Compliant), NO (Violation), PARTIAL (Ambiguous).
+        2. Identify specific "Loopholes" or "Conflicts".
+        3. Provide a "Proposed Fix" (Exact redline text).
+        
+        Return JSON object:
+        {
+          "decision": "YES|NO|PARTIAL",
+          "confidence": 0-100,
+          "rationale": "...",
+          "loophole": "State the conflict clearly",
+          "proposedFix": "Corrected legal text"
+        }`;
+
+        const response = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [{ role: 'system', content: 'You are a Supreme Court constitutional expert.' }, { role: 'user', content: analysisPrompt }],
+            response_format: { type: "json_object" }
+        });
+
+        const result = JSON.parse(response.choices[0].message.content);
+
+        return {
+            mapping_id: idx + 1,
+            uploaded_text_snippet: section.content,
+            section_title: section.title,
+            decision: result.decision,
+            confidence: result.confidence,
+            rationale: result.rationale,
+            loophole: result.loophole,
+            proposedFix: result.proposedFix,
+            constitution_match: {
+                article: `Article ${bestMatch.article}`,
+                articleHeading: bestMatch.articleHeading,
+                text: bestMatch.constitutionText
+            }
+        };
+    });
+
+    const results = await Promise.all(mappingPromises);
+    const validMappings = results.filter(r => r !== null);
+
+    console.log(`✅ Rapid Scan complete in ${(Date.now() - startTime) / 1000}s. Found ${validMappings.length} mappings.`);
+    
+    return validMappings;
+}
+
 module.exports = {
     matchSentenceToConstitution,
     determineCompliance,
     calculateConfidenceScore,
     generateRationale,
     createComplianceMapping,
-    processDocumentCompliance
+    processDocumentCompliance,
+    processThematicCompliance,
+    thematicChunking
 };

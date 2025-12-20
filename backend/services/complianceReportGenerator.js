@@ -95,11 +95,11 @@ async function identifyViolations(mappings) {
             severity: severity,
             description: `Violation of ${mapping.constitution_match.article}`,
             offending_snippet: mapping.uploaded_text_snippet,
-            snippet_location: mapping.snippet_location,
-            constitution_reference: `${mapping.constitution_match.article}${mapping.constitution_match.part ? ', ' + mapping.constitution_match.part : ''}`,
+            snippet_location: mapping.snippet_location || { page: 'Thematic Scan' },
+            constitution_reference: `${mapping.constitution_match.article}`,
             constitution_text: mapping.constitution_match.text,
-            constitution_location: mapping.constitution_match.location,
-            why_violates: mapping.rationale || `The uploaded provision appears to conflict with ${mapping.constitution_match.article}. The constitutional requirement is not met or is contradicted by the language in the uploaded document.`,
+            constitution_location: mapping.constitution_match.location || { startChar: 0 },
+            why_violates: mapping.loophole || mapping.rationale,
             suggested_corrective_language: suggestedFix,
             next_steps: nextSteps,
             confidence: mapping.confidence,
@@ -275,7 +275,7 @@ function generateArticleBreakdown(mappings) {
             averageConfidence: Math.round(group.mappings.reduce((sum, m) => sum + m.confidence, 0) / group.mappings.length),
             relatedSnippets: group.mappings.map(m => ({
                 snippet: m.uploaded_text_snippet,
-                location: m.snippet_location,
+                location: m.snippet_location || { page: 'Rapid Scan' },
                 decision: m.decision,
                 confidence: m.confidence,
                 rationale: m.rationale
@@ -377,7 +377,9 @@ async function generateComplianceReport(documentMeta, sentences, mappings) {
             // Raw mappings for detailed analysis
             mappings: mappings.map((m, idx) => ({
                 ...m,
-                mapping_id: idx + 1
+                mapping_id: idx + 1,
+                snippet_location: m.snippet_location || { page: 'Rapid Scan', paragraph: 'N/A' },
+                similarity_score: m.similarity_score || 0
             })),
             
             violations: violations,
@@ -467,165 +469,53 @@ function generateSuggestedActions(violations, stats) {
     return actions;
 }
 
-
-
 /**
- * Generate complete compliance report
- */
-async function generateComplianceReport(documentMeta, sentences, mappings) {
-    console.log('📝 Generating comprehensive compliance report...');
-    
-    try {
-        // Generate report ID
-        const reportId = `RPT-${new Date().toISOString().split('T')[0]}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
-        
-        // Analyze compliance statistics
-        const stats = analyzeComplianceStats(mappings);
-        
-        // Generate article-by-article breakdown
-        const articleBreakdown = generateArticleBreakdown(mappings);
-        
-        // Generate executive summary
-        const executiveSummary = await generateExecutiveSummary(
-            documentMeta.name,
-            documentMeta.fullText || '',
-            mappings
-        );
-        
-        // Identify violations
-        const violations = await identifyViolations(mappings);
-        
-        // Create detailed key findings
-        const keyFindings = [
-            `Overall compliance: ${stats.overallStatus.replace('_', ' ')}`,
-            `Total constitutional articles reviewed: ${articleBreakdown.totalArticlesReviewed}`,
-            `✅ Fully compliant articles: ${articleBreakdown.compliantArticles.length}`,
-            `❌ Non-compliant articles: ${articleBreakdown.nonCompliantArticles.length}`,
-            `⚠️ Partially compliant articles: ${articleBreakdown.partiallyCompliantArticles.length}`,
-            `Total document snippets analyzed: ${stats.total}`,
-            violations.length > 0 ? `Required actions: ${violations.filter(v => v.severity === 'HIGH').length} high-priority remediations` : 'No critical violations identified'
-        ];
-        
-        // Build complete report
-        const report = {
-            report_id: reportId,
-            uploaded_file: documentMeta.s3Path || documentMeta.name,
-            uploaded_file_meta: {
-                name: documentMeta.name,
-                size: documentMeta.size,
-                type: documentMeta.mimeType,
-                uploadedBy: documentMeta.userId,
-                uploadTimestamp: documentMeta.timestamp || new Date().toISOString()
-            },
-            timestamp: new Date().toISOString(),
-            
-            summary: {
-                documentTitle: documentMeta.name,
-                executiveSummary,
-                keyFindings,
-                overallCompliance: stats.overallStatus,
-                totalArticlesReviewed: articleBreakdown.totalArticlesReviewed,
-                totalSnippets: stats.total,
-                highConfidenceFindings: stats.highConfidence,
-                partialComplianceFindings: stats.partialCount,
-                violationsCount: stats.noCount
-            },
-            
-            // DETAILED ARTICLE-BY-ARTICLE BREAKDOWN
-            article_analysis: {
-                compliant_articles: articleBreakdown.compliantArticles,
-                non_compliant_articles: articleBreakdown.nonCompliantArticles,
-                partially_compliant_articles: articleBreakdown.partiallyCompliantArticles,
-                statistics: {
-                    total_articles: articleBreakdown.totalArticlesReviewed,
-                    compliant_count: articleBreakdown.compliantArticles.length,
-                    non_compliant_count: articleBreakdown.nonCompliantArticles.length,
-                    partially_compliant_count: articleBreakdown.partiallyCompliantArticles.length
-                }
-            },
-            
-            // Raw mappings for detailed analysis
-            mappings: mappings.map((m, idx) => ({
-                ...m,
-                mapping_id: idx + 1
-            })),
-            
-            violations: violations,
-            
-            // Enhanced confidence summary
-            confidence_summary: generateConfidenceSummary(mappings),
-            
-            // Enhanced provenance log  
-            provenance_log: generateProvenanceLog(mappings),
-            
-            suggested_actions: generateSuggestedActions(violations, stats),
-            
-            metadata: {
-                generatedBy: 'Legalyze Constitutional Compliance Checker',
-                version: '2.0',
-                modelUsed: 'gpt-4o-mini',
-                constitutionSource: 'Constitution of Pakistan.txt',
-                analysisDate: new Date().toISOString()
-            }
-        };
-        
-        console.log(`✅ Report generated: ${reportId}`);
-        console.log(`   Articles Reviewed: ${articleBreakdown.totalArticlesReviewed}`);
-        console.log(`   ✅ Compliant: ${articleBreakdown.compliantArticles.length}`);
-        console.log(`   ❌ Non-Compliant: ${articleBreakdown.nonCompliantArticles.length}`);
-        console.log(`   ⚠️  Partial: ${articleBreakdown.partiallyCompliantArticles.length}`);
-        console.log(`   Violations: ${violations.length}`);
-        console.log(`   Overall: ${stats.overallStatus}`);
-        
-        return report;
-        
-    } catch (error) {
-        console.error('Error generating compliance report:', error);
-        throw error;
-    }
-}
-
-
-/**
- * Generate strict markdown report for chat persistence
+ * Generate strict markdown report for chat persistence (Loophole-First V2)
  */
 function generateStrictMarkdown(report) {
     let md = '';
     
-    // Section 1: Summary
-    md += `## 📌 Section 1 — Summary of the Uploaded Document\n\n`;
+    // Section 1: Rapid Scorecard
+    md += `# 🏛️ Constitutional Compliance: Rapid Scan V2\n\n`;
+    md += `> **Status:** ${report.summary.overallCompliance.replace('_', ' ')} | **High Impact Scans:** ${report.summary.totalSnippets}\n\n`;
+    
+    // Section 2: Summary
+    md += `## 📌 Section 1 — Executive Summary\n\n`;
     md += `${report.summary.executiveSummary}\n\n`;
     
-    // Section 2: Compliance Findings
-    md += `## 📌 Section 2 — Compliance With the Constitution of Pakistan\n`;
-    md += `### ✔ Compliant Clauses\n\n`;
+    // Section 3: Critical Loopholes & Redlines
+    md += `## 📌 Section 2 — Critical Loopholes & Loopholes\n`;
+    md += `*High-impact conflicts requiring immediate legal attention.*\n\n`;
+    
+    const nonCompliantMappings = report.mappings.filter(m => m.decision === 'NO' || m.decision === 'PARTIAL');
+    
+    if (nonCompliantMappings.length === 0) {
+        md += `✅ **No critical constitutional conflicts identified in this scan.**\n\n`;
+    } else {
+        nonCompliantMappings.forEach((m, idx) => {
+            md += `### ❌ Conflict #${idx + 1}: ${m.section_title || 'Legal Provision'}\n`;
+            md += `**Issue:** ${m.loophole || m.rationale}\n\n`;
+            md += `**Constitutional Basis:** ${m.constitution_match.article} — *${m.constitution_match.articleHeading}*\n\n`;
+            md += `**📝 Actionable Redline (Proposed Fix):**\n`;
+            md += `> ${m.proposedFix || 'Recommend redrafting to align with ' + m.constitution_match.article}\n\n`;
+            md += `---\n\n`;
+        });
+    }
+    
+    // Section 4: Compliant Foundations
+    md += `## 📌 Section 3 — Compliant Foundations\n`;
+    md += `*Areas demonstrating strong constitutional alignment.*\n\n`;
     
     const compliantMappings = report.mappings.filter(m => m.decision === 'YES');
     if (compliantMappings.length === 0) {
-        md += `*No fully compliant clauses strictly identified in the excerpts analyzed.*\n\n`;
+        md += `*No fully compliant sections identified in this thematic scan.*\n\n`;
     } else {
         compliantMappings.forEach(m => {
-            md += `**Document Line:** "${m.uploaded_text_snippet.substring(0, 150)}..."\n\n`;
-            md += `**Compliant With:** ${m.constitution_match.article} — ${m.constitution_match.articleHeading}\n\n`;
-            md += `---\n\n`;
+            md += `- **${m.section_title}:** Aligns with **${m.constitution_match.article}** (${m.constitution_match.articleHeading})\n`;
         });
     }
     
-    // Section 3: Non-Compliance
-    md += `## 📌 Section 3 — Non-Compliance / Loopholes\n`;
-    md += `### ❌ Non-Compliant Clauses\n\n`;
-    
-    const nonCompliantMappings = report.mappings.filter(m => m.decision === 'NO' || m.decision === 'PARTIAL');
-    if (nonCompliantMappings.length === 0) {
-        md += `*No clear violations identified in the analyzed sections.*\n\n`;
-    } else {
-        nonCompliantMappings.forEach(m => {
-            md += `**Document Line:** "${m.uploaded_text_snippet.substring(0, 150)}..."\n\n`;
-            md += `**Violation:** ${m.constitution_match.article} — ${m.constitution_match.articleHeading}\n\n`;
-            md += `**Why:** ${m.rationale}\n\n`;
-            md += `---\n\n`;
-        });
-    }
+    md += `\n\n*This report focuses on high-impact thematic compliance. For a sentence-level audit, consult the PDF report.*`;
     
     return md;
 }
