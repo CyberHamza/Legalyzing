@@ -5,6 +5,7 @@ const CaseBuildingSession = require('../models/CaseBuildingSession');
 const openai = require('../config/openai');
 const verificationService = require('../services/verificationService');
 const LegalAgentService = require('../services/LegalAgentService');
+const { PETITION_TEMPLATES } = require('../services/petitionTemplates');
 
 /**
  * @route   POST /api/case-building/sessions
@@ -277,6 +278,7 @@ Return a JSON object:
                 { 
                     classification,
                     'caseDetails.caseType': classification.caseType?.toLowerCase(),
+                    selectedTemplateId: agenticResult.metadata.suggestedTemplateId,
                     currentStep: 1
                 }
             );
@@ -294,6 +296,18 @@ Return a JSON object:
             message: 'Failed to analyze case'
         });
     }
+});
+
+/**
+ * @route   GET /api/case-building/templates
+ * @desc    Get all available petition templates
+ * @access  Private
+ */
+router.get('/templates', protect, async (req, res) => {
+    res.json({
+        success: true,
+        data: PETITION_TEMPLATES
+    });
 });
 
 /**
@@ -482,6 +496,99 @@ router.get('/sessions/:id/documents/:index/export', protect, async (req, res) =>
         res.status(500).json({
             success: false,
             message: 'Failed to export document as PDF'
+        });
+    }
+});
+
+/**
+ * @route   POST /api/case-building/save-filing-details
+ * @desc    Save filing details for a session
+ * @access  Private
+ */
+router.post('/save-filing-details', protect, async (req, res) => {
+    try {
+        const { sessionId, factualFields } = req.body;
+        
+        const session = await CaseBuildingSession.findOneAndUpdate(
+            { _id: sessionId, user: req.user.id },
+            { 
+                $set: { factualFields: factualFields },
+                currentStep: 6 // Corresponds to Drafting step
+            },
+            { new: true }
+        );
+
+        if (!session) {
+            return res.status(404).json({
+                success: false,
+                message: 'Session not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: session
+        });
+
+    } catch (error) {
+        console.error('Save filing details error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to save filing details'
+        });
+    }
+});
+
+/**
+ * @route   POST /api/case-building/draft
+ * @desc    Generate a legal document draft using AI (fallback or custom)
+ * @access  Private
+ */
+router.post('/draft', protect, async (req, res) => {
+    try {
+        const { facts, strategy, relevantLaws, precedents, sessionId, filingDetails, templateId } = req.body;
+
+        // Get the template - default to WRIT_PETITION_199
+        const selectedTemplate = PETITION_TEMPLATES[templateId] || PETITION_TEMPLATES.WRIT_PETITION_199;
+        
+        // Get the template content
+        let documentContent = selectedTemplate.template;
+        
+        // Replace all placeholders with actual values from filingDetails
+        if (filingDetails) {
+            Object.keys(filingDetails).forEach(key => {
+                const placeholder = `{{${key}}}`;
+                const value = filingDetails[key] || '______';
+                documentContent = documentContent.replace(new RegExp(placeholder, 'g'), value);
+            });
+        }
+        
+        // Replace any remaining placeholders with underscores
+        documentContent = documentContent.replace(/\{\{[^}]+\}\}/g, '______');
+
+        const newDoc = {
+            type: selectedTemplate.name,
+            content: documentContent,
+            createdAt: new Date()
+        };
+
+        if (sessionId) {
+            await CaseBuildingSession.findOneAndUpdate(
+                { _id: sessionId, user: req.user.id },
+                { $push: { documents: newDoc } }
+            );
+        }
+
+        res.json({
+            success: true,
+            data: newDoc
+        });
+
+    } catch (error) {
+        console.error('Drafting error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to generate legal document'
         });
     }
 });

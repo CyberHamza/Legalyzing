@@ -103,12 +103,20 @@ const CaseBuildingSessionSchema = new mongoose.Schema({
         createdAt: { type: Date, default: Date.now }
     }],
 
+    // Selection of petition template
+    selectedTemplateId: String,
+    factualFields: {
+        type: Map,
+        of: String,
+        default: {}
+    },
+
     // Wizard progress tracking
     currentStep: {
         type: Number,
         default: 0,
         min: 0,
-        max: 5
+        max: 6
     },
     
     // Status

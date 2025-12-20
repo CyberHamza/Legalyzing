@@ -61,12 +61,18 @@ QUERY: "${query}"
 DOMAINS: criminal, constitutional, civil, family, business, general
 STAGES: intake, research, compliance, drafting
 
+PETITION TYPES: 
+- WRIT_PETITION_199 (Use for fundamental rights violation, High Court jurisdiction, challenging govt/public body decisions, seeking stay orders against state actions)
+- BAIL_APPLICATION_497 (Use for seeking release from custody, arrests, FIR related criminal matters)
+- CIVIL_SUIT (Use for recovery of money, property disputes between private parties, specific performance of contract)
+
 RESPONSE FORMAT: JSON
 {
   "route": "research" | "compliance" | "intake",
-  "domain": "criminal" | "constitutional" | "...",
+  "domain": "criminal" | "constitutional" | "civil" | "family",
   "tools": ["authoritative-laws", "precedents", "user-documents"],
-  "reasoning": "..."
+  "suggestedTemplateId": "WRIT_PETITION_199" | "BAIL_APPLICATION_497" | "CIVIL_SUIT" | null,
+  "reasoning": "Briefly explain jurisdictional and procedural choice"
 }`;
 
         const response = await openai.chat.completions.create({
@@ -167,7 +173,8 @@ RESPONSE FORMAT: JSON
             metadata: {
                 route: routing.route,
                 domain: routing.domain,
-                toolsUsed: routing.tools
+                toolsUsed: routing.tools,
+                suggestedTemplateId: routing.suggestedTemplateId
             }
         };
     }

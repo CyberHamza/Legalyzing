@@ -68,11 +68,12 @@ import ReactMarkdown from 'react-markdown';
 
 const STEPS = [
     { label: 'Case Intake', description: 'Describe the facts of your case' },
-    { label: 'Classification', description: 'Identify case type and issues' },
-    { label: 'Relevant Law', description: 'Find applicable Pakistani statutes' },
-    { label: 'Precedents', description: 'Find Supreme Court judgments' },
-    { label: 'Strategy', description: 'Generate case strategy' },
-    { label: 'Drafting', description: 'Generate legal documents' }
+    { label: 'Classification', description: 'AI Case Analysis & Type' },
+    { label: 'Relevant Law', description: 'Statutory legal framework' },
+    { label: 'Precedents', description: 'Supreme Court Case Law' },
+    { label: 'Strategy', description: 'Strategic legal memorandum' },
+    { label: 'Filing Details', description: 'Enter specific petition details' },
+    { label: 'Drafting', description: 'Generate professional petition' }
 ];
 
 const API_BASE = 'http://127.0.0.1:5000';
@@ -114,6 +115,47 @@ const CaseBuildingWizard = ({ onClose }) => {
     const [searchSummary, setSearchSummary] = useState('');
     const [stepAck, setStepAck] = useState({ show: false, message: '' });
     const [analysisComplete, setAnalysisComplete] = useState(false);
+    const [templates, setTemplates] = useState({});
+    const [factualInputs, setFactualInputs] = useState({});
+    const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+
+    // Load available templates
+    useEffect(() => {
+        const loadTemplates = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/api/case-building/templates`, {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    setTemplates(data.data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch templates');
+            }
+        };
+        loadTemplates();
+    }, []);
+
+    // Auto-populate dummy data when template changes
+    useEffect(() => {
+        if (selectedTemplateId && templates[selectedTemplateId]) {
+            const template = templates[selectedTemplateId];
+            const newInputs = { ...factualInputs };
+            let updated = false;
+
+            template.requiredFields.forEach(field => {
+                if (field.defaultValue && !newInputs[field.id]) {
+                    newInputs[field.id] = field.defaultValue;
+                    updated = true;
+                }
+            });
+
+            if (updated) {
+                setFactualInputs(newInputs);
+            }
+        }
+    }, [selectedTemplateId, templates]);
 
     // --- History Management ---
     const fetchSessions = async () => {
@@ -154,8 +196,23 @@ const CaseBuildingWizard = ({ onClose }) => {
                     strategy: session.strategy,
                     documents: session.documents || []
                 });
-                setActiveStep(session.currentStep || (session.classification ? 1 : 0));
+                // Map steps correctly
+                // New steps: 0: Intake, 1: Classification, 2: Laws, 3: Precedents, 4: Strategy, 5: Filing Details, 6: Drafting
+                let loadedStep = session.currentStep;
+                // If it was previously saved with "Filing Details" at index 2, we need to correct it
+                if (loadedStep === 2) {
+                    loadedStep = 1; // Back to Classification or forward to Laws? Let's say forward to Laws
+                    loadedStep = 2; 
+                }
+                setActiveStep(loadedStep || (session.classification ? 1 : 0));
                 
+                if (session.factualFields) {
+                    setFactualInputs(session.factualFields);
+                }
+                if (session.selectedTemplateId) {
+                    setSelectedTemplateId(session.selectedTemplateId);
+                }
+
                 // Set metadata to unblock navigation if data already exists
                 setSearchMetadata({
                     lawsSearched: session.relevantLaws && session.relevantLaws.length > 0,
@@ -291,6 +348,9 @@ const CaseBuildingWizard = ({ onClose }) => {
                 
                 setCaseData(newData);
                 setAnalysisComplete(true);
+                if (analyzeData.data.suggestedTemplateId) {
+                    setSelectedTemplateId(analyzeData.data.suggestedTemplateId);
+                }
                 setStepAck({ show: true, message: 'Analysis Complete! You may now proceed to the next step.' });
                 setTimeout(() => {
                     setStepAck({ show: false, message: '' });
@@ -337,12 +397,12 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                 }
                 
                 setCaseData(prev => ({ ...prev, relevantLaws: laws }));
-                await persistSession({ ...caseData, relevantLaws: laws }, 2);
+                await persistSession({ ...caseData, relevantLaws: laws }, 3); // Updated step index
                 
                 setStepAck({ show: true, message: 'Laws Identified! Moving to Precedents...' });
                 setTimeout(() => {
                     setStepAck({ show: false, message: '' });
-                    setActiveStep(3);
+                    setActiveStep(4); // Updated step index
                 }, 1500);
             } else {
                 throw new Error(data.message || 'Failed to search laws');
@@ -390,12 +450,12 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                 
                 setCaseData(prev => ({ ...prev, precedents: results }));
                 setSearchSummary(summary);
-                await persistSession({ ...caseData, precedents: results, searchSummary: summary }, 3);
+                await persistSession({ ...caseData, precedents: results, searchSummary: summary }, 4); // Updated step index
                 
                 setStepAck({ show: true, message: 'Precedents Found! Building Strategy...' });
                 setTimeout(() => {
                     setStepAck({ show: false, message: '' });
-                    setActiveStep(4);
+                    setActiveStep(5); // Updated step index
                 }, 1500);
             } else {
                 throw new Error(data.message || 'Failed to complete intelligent search');
@@ -440,85 +500,120 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
     };
 
     // --- Step 5: Documents ---
+    const handleSaveFilingDetails = async () => {
+        setLoading(true);
+        setStatusMessage('Saving details...');
+        try {
+            const res = await fetch(`${API_BASE}/api/case-building/save-filing-details`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    sessionId: sessionId,
+                    factualFields: factualInputs
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                return true;
+            }
+            return false;
+        } catch (err) {
+            setError('Failed to save filing details.');
+            return false;
+        } finally {
+            setLoading(false);
+            setStatusMessage('');
+        }
+    };
+
     const handleGenerateDocuments = async () => {
-    setLoading(true);
-    setStatusMessage('Please wait, we are drafting your professional legal petition following High Court standards...');
-    try {
-        const docType = caseData.caseType === 'criminal' ? 'Bail Application' :
-                       caseData.caseType === 'constitutional' ? 'Writ Petition' :
-                       caseData.caseType === 'family' ? 'Family Court Application' :
-                       'Civil Suit';
-
-        const response = await fetch(`${API_BASE}/api/chat`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({
-                message: `Draft a professional ${docType} for the High Court in Pakistan.
-                
-                **CASE PARAMETERS:**
-                Facts: ${caseData.facts}
-                Client Position: ${caseData.clientPosition}
-                Target Court: ${caseData.courtLevel}
-                Relevant Laws: ${caseData.relevantLaws.map(l => l.section).join(', ')}
-                
-                **STRICT TEMPLATE (Pakistan High Court Standard):**
-                1. COURT HEADING (e.g. IN THE LAHORE HIGH COURT)
-                2. CASE NUMBER (Placeholder)
-                3. PARTIES (Petitioner vs Respondent)
-                4. NATURE OF PETITION (e.g. "Under Article 199...")
-                5. RESPECTFULLY SHOWETH (Facts in paragraphs)
-                6. GROUNDS (Legal arguments)
-                7. PRAYER (Relief sought)
-                8. VERIFICATION & AFFIDAVIT
-                
-                Use standard Pakistani legal terminology. Be authoritative and detailed.`
-            })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-            const newDoc = { type: docType, content: data.data.message };
-            setCaseData(prev => ({
+        setLoading(true);
+        setStatusMessage('Please wait, we are drafting your professional legal petition following High Court standards...');
+        
+        try {
+            // Always use backend for document generation with proper field mapping
+            const res = await fetch(`${API_BASE}/api/case-building/draft`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    facts: caseData.facts,
+                    strategy: caseData.strategy,
+                    relevantLaws: caseData.relevantLaws,
+                    precedents: caseData.precedents,
+                    filingDetails: factualInputs,  // Send all Step 6 fields
+                    templateId: selectedTemplateId  // Send selected template ID
+                })
+            });
+            
+            const data = await res.json();
+            
+            if (data.success) {
+                const newDoc = { 
+                    type: data.data.type, 
+                    content: data.data.content, 
+                    createdAt: new Date() 
+                };
+                setCaseData(prev => ({
                 ...prev,
                 documents: [...prev.documents, newDoc]
             }));
-            await persistSession({ ...caseData, documents: [...caseData.documents, newDoc] }, 5);
+            await persistSession({ ...caseData, documents: [...caseData.documents, newDoc] }, 6);
             setStepAck({ show: true, message: 'Final Document Ready!' });
             setTimeout(() => {
                 setStepAck({ show: false, message: '' });
             }, 3000);
+            } else {
+                throw new Error(data.message || 'Failed to generate document');
+            }
+            
+        } catch (err) {
+            setError('Failed to generate legal document. Please try again.');
+        } finally {
+            setLoading(false);
+            setStatusMessage('');
         }
-    } catch (err) {
-        setError('Failed to generate documents');
-    } finally {
-        setLoading(false);
-    }
-};
+    };
 
     const handleExportDocumentPDF = async (index) => {
         try {
-            const response = await fetch(`${API_BASE}/api/case-building/sessions/${sessionId}/documents/${index}/export`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            const doc = caseData.documents[index];
+            if (!doc) {
+                setError('Document not found');
+                return;
+            }
 
-            if (!response.ok) throw new Error('Failed to export PDF');
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Legal_Document_${caseData.documents[index].type.replace(/\s+/g, '_')}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            // Import html2pdf dynamically
+            const html2pdf = (await import('html2pdf.js')).default;
+            
+            // Create a temporary container for the HTML content
+            const element = document.createElement('div');
+            element.innerHTML = doc.content;
+            element.style.padding = '20px';
+            element.style.fontFamily = 'Times New Roman, serif';
+            element.style.fontSize = '12pt';
+            element.style.lineHeight = '1.8';
+            
+            // Configure PDF options
+            const opt = {
+                margin: [0.5, 0.5, 0.5, 0.5],
+                filename: `${doc.type.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+            
+            // Generate and download PDF
+            await html2pdf().set(opt).from(element).save();
+            
         } catch (err) {
-            setError('Failed to export document as PDF');
+            console.error('PDF Export Error:', err);
+            setError('Failed to export document as PDF. Please try again.');
         }
     };
 
@@ -666,7 +761,7 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                 <TextField
                                     fullWidth
                                     multiline
-                                    rows={10}
+                                    rows={6}
                                     label="Provide Detailed Case Facts"
                                     placeholder="Include names, dates, specific incidents, and the current legal status..."
                                     value={caseData.facts}
@@ -713,10 +808,11 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                                 onClick={handleAnalysis}
                                                 disabled={loading || !caseData.facts.trim()}
                                                 sx={{ 
-                                                    borderRadius: '50px', 
-                                                    height: '60px',
+                                                    mt: 3,
+                                                    py: 2,
                                                     fontSize: '1.1rem',
                                                     fontWeight: 'bold',
+                                                    borderRadius: '1px',
                                                     bgcolor: analysisComplete ? 'success.main' : 'primary.main',
                                                     '&:hover': {
                                                         bgcolor: analysisComplete ? 'success.dark' : 'primary.dark',
@@ -787,6 +883,176 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}>
                                     <Box>
                                         <Typography variant="h5" fontWeight="bold">3. Statutory Framework</Typography>
+                                        <Typography variant="body2" color="text.secondary">Applicable Statutes from the Constitution, PPC, CrPC & CPC</Typography>
+                                    </Box>
+                                    {caseData.relevantLaws.length > 0 && !loading && (
+                                        <Button 
+                                            variant="outlined" 
+                                            size="small" 
+                                            startIcon={<Search />} 
+                                            onClick={handleFindLaws}
+                                        >
+                                            Re-Scan Laws
+                                        </Button>
+                                    )}
+                                </Box>
+                                
+                                <AnimatePresence mode="wait">
+                                    {caseData.relevantLaws.length === 0 && !loading ? (
+                                        <motion.div
+                                            key="search-cta"
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 1.05 }}
+                                        >
+                                            <Paper 
+                                                sx={{ 
+                                                    p: 8, 
+                                                    textAlign: 'center', 
+                                                    borderRadius: 4, 
+                                                    bgcolor: 'rgba(25, 118, 210, 0.04)', 
+                                                    border: '2px dashed', 
+                                                    borderColor: 'primary.light',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center'
+                                                }}
+                                            >
+                                                <Gavel sx={{ fontSize: 80, mb: 3, color: 'primary.main', opacity: 0.8 }} />
+                                                <Typography variant="h5" gutterBottom fontWeight="800">
+                                                    Identify Legal Foundations
+                                                </Typography>
+                                                <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 600 }}>
+                                                    Our engine will perform a cross-referential search across the entire Pakistani legal corpus to find the exact sections relevant to your case.
+                                                </Typography>
+                                                <Button 
+                                                    variant="contained" 
+                                                    size="large"
+                                                    startIcon={<Search />} 
+                                                    onClick={handleFindLaws}
+                                                    sx={{ 
+                                                        borderRadius: '50px', 
+                                                        px: 10, 
+                                                        py: 2, 
+                                                        fontSize: '1.2rem', 
+                                                        fontWeight: 'bold', 
+                                                        boxShadow: '0 10px 30px rgba(25, 118, 210, 0.3)',
+                                                        '&:hover': { transform: 'scale(1.02)', boxShadow: '0 15px 40px rgba(25, 118, 210, 0.4)' }
+                                                    }}
+                                                >
+                                                    Initiate Statutory Intelligence Scan
+                                                </Button>
+                                            </Paper>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="results-dashboard"
+                                            initial={{ opacity: 0, y: 30 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                        >
+                                            <Grid container spacing={3}>
+                                                {loading ? (
+                                                    <Grid item xs={12} sx={{ textAlign: 'center', py: 15 }}>
+                                                        <Box sx={{ position: 'relative', display: 'inline-flex', mb: 4 }}>
+                                                            <CircularProgress size={100} thickness={2} sx={{ color: 'rgba(25, 118, 210, 0.2)' }} />
+                                                            <CircularProgress
+                                                                size={100}
+                                                                thickness={4}
+                                                                sx={{
+                                                                    color: 'primary.main',
+                                                                    position: 'absolute',
+                                                                    left: 0,
+                                                                    [`& .MuiCircularProgress-circle`]: { strokeLinecap: 'round' },
+                                                                }}
+                                                            />
+                                                            <Gavel sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: 40, color: 'primary.main' }} />
+                                                        </Box>
+                                                        <Typography variant="h5" sx={{ fontWeight: '800', letterSpacing: 1 }} color="primary">
+                                                            {statusMessage || 'Scanning Global Legal Library...'}
+                                                        </Typography>
+                                                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                                            Cross-referencing Constitution, PPC, CrPC, and local statutes...
+                                                        </Typography>
+                                                    </Grid>
+                                                ) : (
+                                                    <>
+                                                        <Grid item xs={12}>
+                                                            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
+                                                                <Paper sx={{ 
+                                                                    p: 3, 
+                                                                    bgcolor: 'success.main', 
+                                                                    color: 'white', 
+                                                                    borderRadius: 4, 
+                                                                    display: 'flex', 
+                                                                    alignItems: 'center', 
+                                                                    justifyContent: 'center',
+                                                                    gap: 2, 
+                                                                    boxShadow: '0 10px 30px rgba(76, 175, 80, 0.3)',
+                                                                    mb: 2
+                                                                }}>
+                                                                    <CheckCircle sx={{ fontSize: 32 }} />
+                                                                    <Typography variant="h6" fontWeight="900">
+                                                                        SCAN COMPLETE: {caseData.relevantLaws.length} Authoritative Statutes Secured
+                                                                    </Typography>
+                                                                </Paper>
+                                                            </motion.div>
+                                                        </Grid>
+                                                        
+                                                        {caseData.relevantLaws.map((law, i) => (
+                                                            <Grid item xs={12} md={6} key={i}>
+                                                                <Card 
+                                                                    elevation={0} 
+                                                                    sx={{ 
+                                                                        borderRadius: 3, 
+                                                                        border: '1px solid', 
+                                                                        borderColor: 'divider',
+                                                                        height: '100%',
+                                                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                                                        '&:hover': {
+                                                                            transform: 'translateY(-4px)',
+                                                                            boxShadow: 4,
+                                                                            borderColor: 'primary.main'
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <CardContent sx={{ p: 3 }}>
+                                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                                                                            <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.9rem', fontWeight: 'bold' }}>
+                                                                                §
+                                                                            </Avatar>
+                                                                            <Typography variant="h6" color="primary" fontWeight="800">
+                                                                                {law.section || law.law}
+                                                                            </Typography>
+                                                                        </Box>
+                                                                        <Typography variant="body2" sx={{ mb: 2, color: 'text.primary', lineHeight: 1.7 }}>
+                                                                            {law.description}
+                                                                        </Typography>
+                                                                        <Divider sx={{ my: 2, borderStyle: 'dashed' }} />
+                                                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                                                            <Lightbulb sx={{ fontSize: 18, mt: 0.3, color: 'warning.main' }} />
+                                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: '500' }}>
+                                                                                <strong>APPLICATION:</strong> {law.relevance}
+                                                                            </Typography>
+                                                                        </Box>
+                                                                    </CardContent>
+                                                                </Card>
+                                                            </Grid>
+                                                        ))}
+                                                    </>
+                                                )}
+                                            </Grid>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </Box>
+                        )}
+
+                        {/* Step 3: Laws (formerly Step 2) */}
+                        {activeStep === 3 && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}>
+                                    <Box>
+                                        <Typography variant="h5" fontWeight="bold">4. Statutory Framework</Typography>
                                         <Typography variant="body2" color="text.secondary">Applicable Statutes from the Constitution, PPC, CrPC & CPC</Typography>
                                     </Box>
                                     {caseData.relevantLaws.length > 0 && !loading && (
@@ -1115,7 +1381,7 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
 </Box>
                         )}
 
-                        {/* Step 4: Strategy (The Viewer) */}
+                        {/* Step 4: Strategy */}
                         {activeStep === 4 && (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1162,14 +1428,77 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                         </Typography>
                                     </Paper>
                                 )}
-
-</Box>
+                            </Box>
                         )}
 
-                        {/* Step 5: Drafting */}
+                        {/* Step 5: Filing Details (Custom Form) */}
                         {activeStep === 5 && (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                <Typography variant="h5" fontWeight="bold">6. Legal Document Drafting</Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Box>
+                                        <Typography variant="h5" fontWeight="bold">6. Filing Details</Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            {selectedTemplateId && templates[selectedTemplateId] 
+                                                ? `Please provide the specific details for the ${templates[selectedTemplateId].name}.`
+                                                : "Please provide the specific details required to complete your petition package."}
+                                        </Typography>
+                                    </Box>
+                                    <Chip 
+                                        icon={<Gavel />} 
+                                        label={templates[selectedTemplateId]?.name || "Article 199 Package"} 
+                                        color="primary" 
+                                        variant="outlined" 
+                                    />
+                                </Box>
+
+                                <Paper sx={{ p: 4, borderRadius: 3, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 3, color: 'primary.main', fontWeight: 'bold' }}>
+                                        REQUIRED FACTUAL FIELDS
+                                    </Typography>
+                                    <Grid container spacing={3}>
+                                        {/* Group fields by section for better readability */}
+                                        {(() => {
+                                            const currentFields = (templates[selectedTemplateId]?.requiredFields || Object.values(templates)[0]?.requiredFields || []);
+                                            const sections = [...new Set(currentFields.map(f => f.section || 'General Details'))];
+                                            
+                                            return sections.map(section => (
+                                                <React.Fragment key={section}>
+                                                    <Grid item xs={12}>
+                                                        <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 'bold', letterSpacing: 1.2, borderBottom: '1px solid', borderColor: 'divider', pb: 0.5, mb: 1, display: 'block' }}>
+                                                            {section}
+                                                        </Typography>
+                                                    </Grid>
+                                                    {currentFields.filter(f => (f.section || 'General Details') === section).map((field) => (
+                                                        <Grid item xs={12} md={field.type === 'textarea' ? 12 : 6} key={field.id}>
+                                                            <TextField
+                                                                fullWidth
+                                                                label={field.label}
+                                                                placeholder={field.placeholder}
+                                                                multiline={field.type === 'textarea'}
+                                                                rows={field.type === 'textarea' ? 4 : 1}
+                                                                variant="outlined"
+                                                                value={factualInputs[field.id] || ''}
+                                                                onChange={(e) => setFactualInputs(prev => ({ ...prev, [field.id]: e.target.value }))}
+                                                                InputProps={{
+                                                                    sx: { borderRadius: 2 }
+                                                                }}
+                                                            />
+                                                        </Grid>
+                                                    ))}
+                                                </React.Fragment>
+                                            ));
+                                        })()}
+                                    </Grid>
+                                    
+                                    {/* Removed the redundant Complete Filing Details button as per user request */}
+                                </Paper>
+                            </Box>
+                        )}
+
+                        {/* Step 6: Drafting */}
+                        {activeStep === 6 && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <Typography variant="h5" fontWeight="bold">7. Legal Document Drafting</Typography>
                                 <Button 
                                     variant="contained" 
                                     size="large" 
@@ -1211,40 +1540,45 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                             <Paper 
                                                 elevation={4} 
                                                 sx={{ 
-                                                    p: { xs: 4, md: 10 }, 
+                                                    p: { xs: 4, md: 12 }, 
                                                     bgcolor: 'white', 
-                                                    color: '#1a1a1a', 
+                                                    color: '#000', 
                                                     fontFamily: '"Times New Roman", Times, serif',
                                                     borderRadius: 1,
                                                     border: '1px solid',
-                                                    borderColor: 'divider',
+                                                    borderColor: '#ddd',
                                                     maxWidth: '850px',
                                                     mx: 'auto',
-                                                    minHeight: '1100px', // Standard A4 ratio
-                                                    boxShadow: '0 10px 30px rgba(0,0,0,0.1)',
+                                                    minHeight: '1100px',
+                                                    boxShadow: '0 15px 50px rgba(0,0,0,0.1)',
                                                     position: 'relative',
-                                                    '&::before': {
-                                                        content: '""',
-                                                        position: 'absolute',
-                                                        top: 0,
-                                                        left: 0,
-                                                        right: 0,
-                                                        height: '4px',
-                                                        bgcolor: 'primary.main',
-                                                        borderRadius: '4px 4px 0 0'
-                                                    },
-                                                    '& h1, & h2, & h3': { textAlign: 'center', mb: 3 },
-                                                    '& p': { mb: 2, textAlign: 'justify', lineHeight: 2, fontSize: '13pt' },
+                                                    lineHeight: 1.6,
                                                     '& .legal-content': {
-                                                        whiteSpace: 'pre-wrap',
-                                                        fontSize: '12pt',
-                                                        lineHeight: 1.8
+                                                        fontSize: '13pt',
+                                                        textAlign: 'justify',
+                                                        '& h1': { textAlign: 'center', fontSize: '18pt', fontWeight: 'bold', textTransform: 'uppercase', mb: 4, mt: 4 },
+                                                        '& h2': { textAlign: 'center', fontSize: '16pt', fontWeight: 'bold', textTransform: 'uppercase', mb: 3, mt: 3 },
+                                                        '& h3': { textAlign: 'center', fontSize: '14pt', fontWeight: 'bold', textTransform: 'uppercase', mb: 3 },
+                                                        '& h4': { textAlign: 'center', fontSize: '13pt', fontWeight: 'bold', textDecoration: 'underline', mt: 4, mb: 2 },
+                                                        '& p': { mb: 2, textAlign: 'justify', lineHeight: 2 },
+                                                        '& table': {
+                                                            width: '100%',
+                                                            borderCollapse: 'collapse',
+                                                            my: 4,
+                                                            '& th, & td': { border: '1px solid #000', p: 1.5, textAlign: 'left' },
+                                                            '& th': { bgcolor: '#f5f5f5', fontWeight: 'bold' }
+                                                        },
+                                                        '& hr': { border: 'none', borderTop: '2px solid #000', my: 5 },
+                                                        '& strong': { fontWeight: 'bold' },
+                                                        '& em': { fontStyle: 'italic' },
+                                                        '& blockquote': { border: '1px solid #eee', p: 2, bgcolor: '#fafafa', borderRadius: 1 }
                                                     }
                                                 }}
                                             >
-                                                <Box className="legal-content">
-                                                    <ReactMarkdown>{doc.content}</ReactMarkdown>
-                                                </Box>
+                                                <Box 
+                                                    className="legal-content"
+                                                    dangerouslySetInnerHTML={{ __html: doc.content }}
+                                                />
                                                 
                                                 <Divider sx={{ my: 6, borderColor: 'rgba(0,0,0,0.1)' }} />
                                                 <Box sx={{ textAlign: 'center', opacity: 0.5 }}>
@@ -1276,7 +1610,10 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
             }}>
                 <Button 
                     disabled={activeStep === 0 || loading} 
-                    onClick={() => setActiveStep(prev => prev - 1)}
+                    onClick={() => {
+                        setActiveStep(prev => prev - 1);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
                     startIcon={<ArrowBack />}
                 >
                     Back
@@ -1295,15 +1632,24 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                     disabled={loading || 
                         (activeStep === 0 && !caseData.facts.trim()) ||
                         (activeStep === 1 && !caseData.classification) ||
-                        (activeStep === 2 && !(searchMetadata.lawsSearched || caseData.relevantLaws.length > 0)) ||
-                        (activeStep === 3 && !(searchMetadata.precedentsSearched || caseData.precedents.length > 0)) ||
-                        (activeStep === 4 && !caseData.strategy)
+                        (activeStep === 2 && !(searchMetadata.lawsSearched || caseData.relevantLaws.length > 0)) || // Updated step index
+                        (activeStep === 3 && !(searchMetadata.precedentsSearched || caseData.precedents.length > 0)) || // Updated step index
+                        (activeStep === 4 && !caseData.strategy) || // Updated step index
+                        (activeStep === 5 && Object.values(factualInputs).length === 0) // Filing details check
                     }
-                    onClick={() => {
+                    onClick={async () => {
                         if (activeStep === STEPS.length - 1) {
                             onClose();
+                        } else if (activeStep === 5) {
+                            // Step 6: Filing Details - Save before proceeding
+                            const saved = await handleSaveFilingDetails();
+                            if (saved) {
+                                setActiveStep(prev => prev + 1);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }
                         } else {
                             setActiveStep(prev => prev + 1);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
                     }}
                     endIcon={activeStep === STEPS.length - 1 ? <CheckCircle /> : <ArrowForward />}
