@@ -50,7 +50,10 @@ const CaseBuildingSessionSchema = new mongoose.Schema({
         dates: [{ date: String, event: String }],
         locations: [{ place: String, relevance: String }],
         keyEvents: [{ description: String, importance: String }],
-        evidence: [{ type: String, description: String }],
+        evidence: [{ 
+            type: { type: String }, 
+            description: String 
+        }],
         keyFacts: [String] // Simple list of key factual points
     },
 

@@ -39,7 +39,8 @@ import {
     TableHead,
     TableRow,
     Container,
-    Grid
+    Grid,
+    Avatar
 } from '@mui/material';
 import {
     Gavel,
@@ -74,7 +75,7 @@ const STEPS = [
     { label: 'Drafting', description: 'Generate legal documents' }
 ];
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'http://127.0.0.1:5000';
 
 const CaseBuildingWizard = ({ onClose }) => {
     const [activeStep, setActiveStep] = useState(0);
@@ -111,6 +112,7 @@ const CaseBuildingWizard = ({ onClose }) => {
 
     const [statusMessage, setStatusMessage] = useState('');
     const [searchSummary, setSearchSummary] = useState('');
+    const [stepAck, setStepAck] = useState({ show: false, message: '' });
 
     // --- History Management ---
     const fetchSessions = async () => {
@@ -301,7 +303,11 @@ const CaseBuildingWizard = ({ onClose }) => {
                     })
                 });
 
-                setActiveStep(1);
+                setStepAck({ show: true, message: 'Analysis Complete! Auto-advancing...' });
+                setTimeout(() => {
+                    setStepAck({ show: false, message: '' });
+                    setActiveStep(1);
+                }, 1500);
             }
         } catch (err) {
             setError('Failed to analyze case. Please try again.');
@@ -345,7 +351,12 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                 
                 setCaseData(prev => ({ ...prev, relevantLaws: laws }));
                 await persistSession({ ...caseData, relevantLaws: laws }, 2);
-                setStatusMessage(`Process complete! We found ${laws.length} relevant laws. You can now move to the next step.`);
+                
+                setStepAck({ show: true, message: 'Laws Identified! Moving to Precedents...' });
+                setTimeout(() => {
+                    setStepAck({ show: false, message: '' });
+                    setActiveStep(3);
+                }, 1500);
             } else {
                 throw new Error(data.message || 'Failed to search laws');
             }
@@ -387,13 +398,18 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
             }));
 
             if (data.success) {
-                const { results, summary } = data.data;
+                const results = data.data?.results || [];
+                const summary = data.data?.summary || '';
                 
                 setCaseData(prev => ({ ...prev, precedents: results }));
                 setSearchSummary(summary);
                 await persistSession({ ...caseData, precedents: results, searchSummary: summary }, 3);
                 
-                setStatusMessage(`Search complete! We identified ${results.length} highly relevant precedents.`);
+                setStepAck({ show: true, message: 'Precedents Found! Building Strategy...' });
+                setTimeout(() => {
+                    setStepAck({ show: false, message: '' });
+                    setActiveStep(4);
+                }, 1500);
             } else {
                 throw new Error(data.message || 'Failed to complete intelligent search');
             }
@@ -424,7 +440,10 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
             const data = await response.json();
             if (data.success) {
                 setCaseData(prev => ({ ...prev, strategy: data.data.strategy }));
-                setActiveStep(4);
+                setStepAck({ show: true, message: 'Strategy Memorandum Generated! Proceeding to document drafting?' });
+                setTimeout(() => {
+                    setStepAck({ show: false, message: '' });
+                }, 3000);
             }
         } catch (err) {
             setError('Failed to generate strategy');
@@ -480,7 +499,10 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                 documents: [...prev.documents, newDoc]
             }));
             await persistSession({ ...caseData, documents: [...caseData.documents, newDoc] }, 5);
-            setStatusMessage('Drafting complete! Your professional petition is ready for review below.');
+            setStepAck({ show: true, message: 'Final Document Ready!' });
+            setTimeout(() => {
+                setStepAck({ show: false, message: '' });
+            }, 3000);
         }
     } catch (err) {
         setError('Failed to generate documents');
@@ -537,9 +559,11 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
             {/* Header Area */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
                 <Box>
-                    <Typography variant="h4" fontWeight="bold" color="primary">Case Building Wizard V2</Typography>
-                    <Typography variant="subtitle1" color="text.secondary">
-                        Professional Pakistani Legal Strategy & Compliance Engine
+                    <Typography variant="h4" fontWeight="900" color="primary.main" sx={{ mb: 0.5 }}>
+                        Case Building Wizard
+                    </Typography>
+                    <Typography variant="subtitle1" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Gavel fontSize="small" color="primary" /> Professional Pakistani Legal Strategy & Compliance Engine
                     </Typography>
                 </Box>
                 <Stack direction="row" spacing={2}>
@@ -616,7 +640,7 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
             </Box>
 
             {/* Step Content Area */}
-            <Box sx={{ flexGrow: 1, overflowY: 'auto' }}>
+            <Box sx={{ flexGrow: 1, overflowY: 'auto', position: 'relative' }}>
                 <AnimatePresence mode="wait">
                     <motion.div
                         key={activeStep}
@@ -625,6 +649,29 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.3 }}
                     >
+                        {stepAck.show && (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                style={{
+                                    marginBottom: '20px'
+                                }}
+                            >
+                                <Alert 
+                                    icon={<CheckCircle fontSize="inherit" />} 
+                                    severity="success"
+                                    sx={{ 
+                                        borderRadius: 2, 
+                                        bgcolor: 'success.main', 
+                                        color: 'white',
+                                        '& .MuiAlert-icon': { color: 'white' }
+                                    }}
+                                >
+                                    {stepAck.message}
+                                </Alert>
+                            </motion.div>
+                        )}
                         {/* Step 0: Intake */}
                         {activeStep === 0 && (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -737,82 +784,134 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                         {/* Step 2: Laws */}
                         {activeStep === 2 && (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                <Typography variant="h5" fontWeight="bold">3. Statutory Framework</Typography>
-                                
-                                {caseData.relevantLaws.length === 0 && !loading ? (
-                                    <Paper 
-                                        sx={{ 
-                                            p: 6, 
-                                            textAlign: 'center', 
-                                            borderRadius: 4, 
-                                            bgcolor: 'action.hover', 
-                                            border: '2px dashed', 
-                                            borderColor: 'primary.main', 
-                                            opacity: 0.9
-                                        }}
-                                    >
-                                        <Gavel sx={{ fontSize: 60, mb: 2, color: 'primary.main', opacity: 0.5 }} />
-                                        <Typography variant="h6" gutterBottom fontWeight="bold">
-                                            Identify Applicable Pakistani Laws
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" sx={{ mb: 4, maxWidth: 500, mx: 'auto' }}>
-                                            Our AI will scan the Pakistan Penal Code, CrPC, CPC, and Constitutional Articles to find the most relevant sections for your specific case facts.
-                                        </Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid', borderColor: 'divider', pb: 2 }}>
+                                    <Box>
+                                        <Typography variant="h5" fontWeight="bold">3. Statutory Framework</Typography>
+                                        <Typography variant="body2" color="text.secondary">Applicable Statutes from the Constitution, PPC, CrPC & CPC</Typography>
+                                    </Box>
+                                    {caseData.relevantLaws.length > 0 && !loading && (
                                         <Button 
-                                            variant="contained" 
-                                            size="large"
+                                            variant="outlined" 
+                                            size="small" 
                                             startIcon={<Search />} 
                                             onClick={handleFindLaws}
-                                            sx={{ borderRadius: 3, px: 6, py: 1.5 }}
                                         >
-                                            Search Applicable Statutes
+                                            Re-Scan Laws
                                         </Button>
-                                    </Paper>
-                                ) : (
-                                    <Grid container spacing={3}>
-                                        <Grid item xs={12}>
-                                            <Paper sx={{ p: 2, bgcolor: 'success.main', color: 'white', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, shadow: 3 }}>
-                                                <CheckCircle fontSize="small" />
-                                                <Typography variant="subtitle2" fontWeight="bold">
-                                                    {statusMessage || `Intelligence Scan Successful: Found ${caseData.relevantLaws.length} Strategic Statutes. Now move to the next step!`}
+                                    )}
+                                </Box>
+                                
+                                <AnimatePresence mode="wait">
+                                    {caseData.relevantLaws.length === 0 && !loading ? (
+                                        <motion.div
+                                            key="search-cta"
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 1.05 }}
+                                        >
+                                            <Paper 
+                                                sx={{ 
+                                                    p: 8, 
+                                                    textAlign: 'center', 
+                                                    borderRadius: 4, 
+                                                    bgcolor: 'rgba(25, 118, 210, 0.04)', 
+                                                    border: '2px dashed', 
+                                                    borderColor: 'primary.light',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center'
+                                                }}
+                                            >
+                                                <Gavel sx={{ fontSize: 80, mb: 3, color: 'primary.main', opacity: 0.8 }} />
+                                                <Typography variant="h5" gutterBottom fontWeight="800">
+                                                    Identify Legal Foundations
                                                 </Typography>
+                                                <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 600 }}>
+                                                    Our engine will perform a cross-referential search across the entire Pakistani legal corpus to find the exact sections relevant to your case.
+                                                </Typography>
+                                                <Button 
+                                                    variant="contained" 
+                                                    size="large"
+                                                    startIcon={<Search />} 
+                                                    onClick={handleFindLaws}
+                                                    sx={{ borderRadius: '50px', px: 10, py: 2, fontSize: '1.1rem', fontWeight: 'bold', boxShadow: 4 }}
+                                                >
+                                                    Commence Legal Scan
+                                                </Button>
                                             </Paper>
-                                        </Grid>
-                                        {searchMetadata.lastLawQuery && (
-                                            <Grid item xs={12}>
-                                                <Alert severity="info" variant="outlined" sx={{ borderRadius: 2 }}>
-                                                    <strong>Search Scan:</strong> {searchMetadata.lastLawQuery}
-                                                </Alert>
+                                        </motion.div>
+                                    ) : (
+                                        <motion.div
+                                            key="results-dashboard"
+                                            initial={{ opacity: 0, y: 30 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                        >
+                                            <Grid container spacing={3}>
+                                                {loading ? (
+                                                    <Grid item xs={12} sx={{ textAlign: 'center', py: 10 }}>
+                                                        <CircularProgress size={60} thickness={4} />
+                                                        <Typography variant="h6" sx={{ mt: 3, fontWeight: 'medium' }} color="primary">
+                                                            {statusMessage || 'Analyzing legal corpus...'}
+                                                        </Typography>
+                                                    </Grid>
+                                                ) : (
+                                                    <>
+                                                        <Grid item xs={12}>
+                                                            <Paper sx={{ p: 2, bgcolor: 'success.main', color: 'white', borderRadius: 2, display: 'flex', alignItems: 'center', gap: 2, shadow: 3 }}>
+                                                                <CheckCircle />
+                                                                <Typography variant="subtitle1" fontWeight="bold">
+                                                                    Intelligence Scan Complete: {caseData.relevantLaws.length} Statutes Identified
+                                                                </Typography>
+                                                            </Paper>
+                                                        </Grid>
+                                                        
+                                                        {caseData.relevantLaws.map((law, i) => (
+                                                            <Grid item xs={12} md={6} key={i}>
+                                                                <Card 
+                                                                    elevation={0} 
+                                                                    sx={{ 
+                                                                        borderRadius: 3, 
+                                                                        border: '1px solid', 
+                                                                        borderColor: 'divider',
+                                                                        height: '100%',
+                                                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                                                        '&:hover': {
+                                                                            transform: 'translateY(-4px)',
+                                                                            boxShadow: 4,
+                                                                            borderColor: 'primary.main'
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <CardContent sx={{ p: 3 }}>
+                                                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                                                                            <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32, fontSize: '0.9rem', fontWeight: 'bold' }}>
+                                                                                §
+                                                                            </Avatar>
+                                                                            <Typography variant="h6" color="primary" fontWeight="800">
+                                                                                {law.section || law.law}
+                                                                            </Typography>
+                                                                        </Box>
+                                                                        <Typography variant="body2" sx={{ mb: 2, color: 'text.primary', lineHeight: 1.7 }}>
+                                                                            {law.description}
+                                                                        </Typography>
+                                                                        <Divider sx={{ my: 2, borderStyle: 'dashed' }} />
+                                                                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                                                            <Lightbulb sx={{ fontSize: 18, mt: 0.3, color: 'warning.main' }} />
+                                                                            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: '500' }}>
+                                                                                <strong>APPLICATION:</strong> {law.relevance}
+                                                                            </Typography>
+                                                                        </Box>
+                                                                    </CardContent>
+                                                                </Card>
+                                                            </Grid>
+                                                        ))}
+                                                    </>
+                                                )}
                                             </Grid>
-                                        )}
-                                        {caseData.relevantLaws.length === 0 && !loading && (
-                                            <Grid item xs={12}>
-                                                <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover' }}>
-                                                    <Typography color="text.secondary">No specific laws extracted. You can try searching again or proceed to strategy generation.</Typography>
-                                                    <Button variant="outlined" sx={{ mt: 2 }} onClick={handleFindLaws}>Retry Search</Button>
-                                                </Paper>
-                                            </Grid>
-                                        )}
-                                        {caseData.relevantLaws.map((law, i) => (
-                                            <Grid item xs={12} md={6} key={i}>
-                                                <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', height: '100%' }}>
-                                                    <Typography variant="h6" color="primary" fontWeight="bold">{law.section || law.law}</Typography>
-                                                    <Typography variant="body2" sx={{ my: 2 }}>{law.description}</Typography>
-                                                    <Typography variant="caption" color="text.secondary"><strong>Relevance:</strong> {law.relevance}</Typography>
-                                                </Paper>
-                                            </Grid>
-                                        ))}
-                                        {loading && (
-                                            <Grid item xs={12} sx={{ textAlign: 'center', py: 4 }}>
-                                                <CircularProgress size={40} />
-                                                <Typography variant="body1" sx={{ mt: 2, fontWeight: 'medium' }} color="primary">
-                                                    {statusMessage || 'Please wait, we are searching...'}
-                                                </Typography>
-                                            </Grid>
-                                        )}
-                                    </Grid>
-                                )}
-</Box>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </Box>
                         )}
 
                         {/* Step 3: Precedents */}
@@ -882,7 +981,7 @@ Return JSON array: [{"section": "...", "law": "...", "description": "...", "rele
                                             </Paper>
                                         )}
                                         <Grid container spacing={3}>
-                                            {caseData.precedents.map((p, i) => (
+                                            {caseData.precedents?.map((p, i) => (
                                                 <Grid item xs={12} key={i}>
                                                     <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: 'background.paper', position: 'relative', overflow: 'hidden' }}>
                                                         {p.priority && (
