@@ -29,7 +29,7 @@ async function matchSentenceToConstitution(sentence, topK = 5) {
             endChar: match.metadata.endChar,
             lineStart: match.metadata.lineStart,
             lineEnd: match.metadata.lineEnd,
-            similarityScore: match.score,
+            similarity_score: match.score,
             pineconeId: match.id
         }));
     } catch (error) {
@@ -417,10 +417,11 @@ async function processThematicCompliance(documentText, documentMeta = {}) {
             loophole: result.loophole,
             proposedFix: result.proposedFix,
             constitution_match: {
-                article: `Article ${bestMatch.article}`,
+                article: bestMatch.article.startsWith('Article') ? bestMatch.article : `Article ${bestMatch.article}`,
                 articleHeading: bestMatch.articleHeading,
                 text: bestMatch.constitutionText
-            }
+            },
+            similarity_score: bestMatch.similarity_score || bestMatch.similarityScore || 0
         };
     });
 

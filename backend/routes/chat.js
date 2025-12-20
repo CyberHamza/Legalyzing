@@ -332,7 +332,7 @@ router.post('/', protect, async (req, res) => {
                     messages: [
                         {
                             role: 'system',
-                            content: 'Generate a very concise, unique, and professional title (max 4-5 words) for this conversation based on the user message. Do not use quotes.'
+                            content: 'Generate a very concise, professional legal chat title (strictly 3-4 words) for this conversation based on the user message. Do not use quotes, do not use "Title:", just the text.'
                         },
                         {
                             role: 'user',

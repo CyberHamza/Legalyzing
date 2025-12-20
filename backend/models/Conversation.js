@@ -53,7 +53,8 @@ const conversationSchema = new mongoose.Schema(
     }
 );
 
-// Auto-generate title from first user message
+// Auto-generate title from first user message - Disabled to allow smart AI titles in routes
+/*
 conversationSchema.pre('save', function(next) {
     if (this.isNew && this.messages.length > 0) {
         const firstMessage = this.messages.find(m => m.role === 'user');
@@ -64,6 +65,7 @@ conversationSchema.pre('save', function(next) {
     }
     next();
 });
+*/
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
 

@@ -32,6 +32,7 @@ Provide a highly efficient, thorough summary (3-4 sentences) outlining the direc
     }
 }
 
+
 /**
  * Analyze compliance statistics
  */
@@ -302,7 +303,7 @@ function generateArticleBreakdown(mappings) {
 /**
  * Generate complete compliance report
  */
-async function generateComplianceReport(documentMeta, sentences, mappings) {
+async function generateComplianceReport(documentMeta, sentences, mappings, verifiedReferences = []) {
     console.log('📝 Generating comprehensive compliance report...');
     
     try {
@@ -358,7 +359,8 @@ async function generateComplianceReport(documentMeta, sentences, mappings) {
                 totalSnippets: stats.total,
                 highConfidenceFindings: stats.highConfidence,
                 partialComplianceFindings: stats.partialCount,
-                violationsCount: stats.noCount
+                violationsCount: stats.noCount,
+                verifiedReferencesCount: verifiedReferences.length
             },
             
             // DETAILED ARTICLE-BY-ARTICLE BREAKDOWN
@@ -383,6 +385,7 @@ async function generateComplianceReport(documentMeta, sentences, mappings) {
             })),
             
             violations: violations,
+            verified_references: verifiedReferences,
             
             // Enhanced confidence summary
             confidence_summary: generateConfidenceSummary(mappings),
@@ -483,8 +486,22 @@ function generateStrictMarkdown(report) {
     md += `## 📌 Section 1 — Executive Summary\n\n`;
     md += `${report.summary.executiveSummary}\n\n`;
     
-    // Section 3: Critical Loopholes & Redlines
-    md += `## 📌 Section 2 — Critical Loopholes & Loopholes\n`;
+    // Section 2: Legal Verification & Accuracy
+    if (report.verified_references && report.verified_references.length > 0) {
+        md += `## 📚 Section 2 — Legal Verification & Accuracy\n`;
+        md += `*Validation of external articles, statutes, and citations referenced in the document.*\n\n`;
+        
+        report.verified_references.forEach(ref => {
+            const icon = ref.status === 'VALID' ? '✅' : ref.status === 'MISCITED' ? '❌' : '❓';
+            md += `${icon} **${ref.reference}** (${ref.source})\n`;
+            md += `> Status: **${ref.status}** | Context: *${ref.context}*\n\n`;
+        });
+        
+        md += `---\n\n`;
+    }
+
+    // Section 3: Constitutional Compliance Breakdown
+    md += `## ⚖️ Section 3 — Constitutional Compliance Breakdown\n`;
     md += `*High-impact conflicts requiring immediate legal attention.*\n\n`;
     
     const nonCompliantMappings = report.mappings.filter(m => m.decision === 'NO' || m.decision === 'PARTIAL');
@@ -511,7 +528,7 @@ function generateStrictMarkdown(report) {
     }
     
     // Section 4: Compliant Foundations
-    md += `## 📌 Section 3 — Compliant Foundations\n`;
+    md += `## 📌 Section 4 — Compliant Foundations\n`;
     md += `*Areas demonstrating strong constitutional alignment.*\n\n`;
     
     const compliantMappings = report.mappings.filter(m => m.decision === 'YES');

@@ -15,24 +15,23 @@ const ThemeSwitcher = () => {
 
   return (
     <Tooltip title={`Current Theme: ${PALETTES[currentTheme]?.name || currentTheme} (Click to change)`}>
-      <Box sx={{ position: 'fixed', top: 16, right: 100, zIndex: 9999 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
         <IconButton
           onClick={handleThemeChange}
           sx={{
-            width: 40,
-            height: 40,
-            bgcolor: 'background.paper',
-            boxShadow: 3,
+            width: 36,
+            height: 36,
+            bgcolor: 'action.hover',
             border: '1px solid',
             borderColor: 'divider',
             transition: 'all 0.3s ease',
             '&:hover': { 
-              bgcolor: 'background.default',
+              bgcolor: 'action.selected',
               transform: 'rotate(45deg)'
             }
           }}
         >
-          <ColorLensIcon color="primary" />
+          <ColorLensIcon color="primary" sx={{ fontSize: '1.2rem' }} />
         </IconButton>
       </Box>
     </Tooltip>

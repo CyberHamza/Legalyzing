@@ -10,6 +10,7 @@ const { extractText } = require('../utils/documentProcessor');
 const { extractSentencesWithProvenance } = require('../services/sentenceExtractor');
 const { processThematicCompliance: processDocumentCompliance } = require('../services/complianceMatchingEngine'); // Aliased for minimal disruption
 const { generateComplianceReport, generateStrictMarkdown } = require('../services/complianceReportGenerator');
+const { classifyLegalDocument, verifyLegalReferences } = require('../services/legalComplianceAgent');
 const { generatePDFReport } = require('../services/pdfReportGenerator');
 const crypto = require('crypto');
 const path = require('path');
@@ -96,7 +97,25 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
 
         console.log(`   ✅ Extracted ${documentText.length} characters`);
 
-        // Step 3: Extract sentences (kept for backward compatibility with the report generator)
+        // Step 2.5: Agentic Classification
+        console.log('   🤖 Classifying document via Agentic RAG...');
+        const classification = await classifyLegalDocument(documentText);
+        console.log(`   📊 Classification: ${classification.classification} (Confidence: ${classification.confidence}%)`);
+
+        if (!classification.isLegal) {
+            return res.status(403).json({
+                success: false,
+                message: `Compliance check is only available for legal documents. This document looks like a "${classification.classification}".`,
+                reasoning: classification.reasoning
+            });
+        }
+
+        // Step 2.6: Verify References
+        console.log('   📚 Verifying legal references in document...');
+        const verifiedReferences = await verifyLegalReferences(documentText);
+        console.log(`   ✅ Verified ${verifiedReferences.length} references.`);
+
+        // Step 3: Extract sentences (kept for backward compatibility)
         console.log('   ✂️  Extracting sentences for report metadata...');
         const sentences = extractSentencesWithProvenance(documentText);
 
@@ -117,7 +136,7 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
 
         // Step 5: Generate comprehensive report
         console.log('   📝 Generating comprehensive compliance report...');
-        const report = await generateComplianceReport(documentMeta, sentences, mappings);
+        const report = await generateComplianceReport(documentMeta, sentences, mappings, verifiedReferences);
         
         // Generate Strict Markdown for Chat Persistence
         console.log('   📋 Generating strict markdown format...');
@@ -137,17 +156,21 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
         let pdfS3Key = null;
         try {
             const pdfBuffer = await fs.readFile(pdfPath);
-            pdfS3Key = s3Key.replace(path.basename(s3Key), `report_${report.report_id}.pdf`);
-            
-            await s3Client.send(new PutObjectCommand({
-                Bucket: process.env.AWS_BUCKET_NAME,
-                Key: pdfS3Key,
-                Body: pdfBuffer,
-                ContentType: 'application/pdf',
-                ServerSideEncryption: 'AES256'
-            }));
-            
-            console.log('   ✅ PDF uploaded to S3');
+            if (s3Key) {
+                pdfS3Key = s3Key.replace(path.basename(s3Key), `report_${report.report_id}.pdf`);
+                
+                await s3Client.send(new PutObjectCommand({
+                    Bucket: process.env.AWS_BUCKET_NAME,
+                    Key: pdfS3Key,
+                    Body: pdfBuffer,
+                    ContentType: 'application/pdf',
+                    ServerSideEncryption: 'AES256'
+                }));
+                
+                console.log('   ✅ PDF uploaded to S3');
+            } else {
+                console.warn('   ⚠️  Skipping PDF upload: s3Key is null');
+            }
             
             // Clean up local PDF
             await fs.unlink(pdfPath).catch(() => {});
@@ -156,18 +179,23 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
         }
 
         // Step 8: Upload JSON report to S3
-        const jsonS3Key = s3Key.replace(path.basename(s3Key), `report_${report.report_id}.json`);
-        try {
-            await s3Client.send(new PutObjectCommand({
-                Bucket: process.env.AWS_BUCKET_NAME,
-                Key: jsonS3Key,
-                Body: JSON.stringify(report, null, 2),
-                ContentType: 'application/json',
-                ServerSideEncryption: 'AES256'
-            }));
-            console.log('   ✅ JSON report uploaded to S3');
-        } catch (jsonError) {
-            console.error('   ⚠️  JSON upload failed:', jsonError.message);
+        let jsonS3Key = null;
+        if (s3Key) {
+            jsonS3Key = s3Key.replace(path.basename(s3Key), `report_${report.report_id}.json`);
+            try {
+                await s3Client.send(new PutObjectCommand({
+                    Bucket: process.env.AWS_BUCKET_NAME,
+                    Key: jsonS3Key,
+                    Body: JSON.stringify(report, null, 2),
+                    ContentType: 'application/json',
+                    ServerSideEncryption: 'AES256'
+                }));
+                console.log('   ✅ JSON report uploaded to S3');
+            } catch (jsonError) {
+                console.error('   ⚠️  JSON upload failed:', jsonError.message);
+            }
+        } else {
+            console.warn('   ⚠️  Skipping JSON upload: s3Key is null');
         }
 
         // Step 9: Save to database
@@ -210,14 +238,13 @@ router.post('/check', protect, upload.single('document'), async (req, res) => {
         console.log('   🧠 Generating smart chat title...');
         let chatTitle = `Compliance: ${req.file.originalname.substring(0, 30)}`;
         try {
-            const titlePrompt = `Generate a concise, professional chat title based on this legal compliance document summary:
+            const titlePrompt = `Generate a very concise, professional legal chat title (strictly 3-4 words) for this constitutional compliance report:
 "${report.summary.executiveSummary.substring(0, 300)}"
 
 Requirements:
-1. Format MUST be "Subject - Topic" (e.g., "SC Judgment - Article 25 Compliance")
-2. Maximum 6 words total.
-3. Use strict legal terminology.
-4. No quotes, no labels like "Title:", just the text.`;
+1. Strictly 3-4 words.
+2. Use strict legal terminology.
+3. No quotes, no labels like "Title:", just the text.`;
             
             const titleResponse = await openai.chat.completions.create({
                 model: 'gpt-4o-mini',

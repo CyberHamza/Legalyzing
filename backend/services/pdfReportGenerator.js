@@ -47,9 +47,13 @@ async function generatePDFReport(reportData, outputPath) {
                 addViolationsSection(doc, reportData);
             }
             
-            // Confidence Summary
-            doc.addPage();
             addConfidenceSummary(doc, reportData);
+            
+            // Verified References
+            if (reportData.verified_references && reportData.verified_references.length > 0) {
+                doc.addPage();
+                addVerifiedReferencesSection(doc, reportData);
+            }
             
             // Suggested Actions
             addSuggestedActions(doc, reportData);
@@ -111,15 +115,27 @@ function addTitlePage(doc, data) {
     
     doc.moveDown();
     doc.font('Helvetica-Bold')
-        .text('Overall Compliance: ', { continued: true })
-        .font('Helvetica')
-        .text(data.summary.overallCompliance.replace('_', ' '));
+    .text('Overall Compliance: ', { continued: true })
+    .font('Helvetica')
+    .text(data.summary.overallCompliance.replace('_', ' '));
+
+    doc.moveDown();
+    doc.font('Helvetica-Bold')
+    .text('Legal Classification: ', { continued: true })
+    .font('Helvetica')
+    .text(data.document_meta?.classification || 'Legal Document');
     
     doc.moveDown();
     doc.font('Helvetica-Bold')
-        .text('Compliance Score: ', { continued: true })
+        .text('Verified References: ', { continued: true })
         .font('Helvetica')
-        .text(`${data.summary.highConfidenceFindings} / ${data.summary.totalSnippets} sections (${Math.round(data.summary.highConfidenceFindings / data.summary.totalSnippets * 100)}%)`);
+        .text(data.summary.verifiedReferencesCount !== undefined ? data.summary.verifiedReferencesCount : 'N/A');
+
+    doc.moveDown();
+    doc.font('Helvetica-Bold')
+        .text(`Compliance Score: `, { continued: true })
+        .font('Helvetica')
+        .text(`${data.summary.highConfidenceFindings} / ${data.summary.totalSnippets} sections (${data.summary.totalSnippets > 0 ? Math.round(data.summary.highConfidenceFindings / data.summary.totalSnippets * 100) : 0}%)`);
 }
 
 /**
@@ -190,7 +206,7 @@ function addArticleAnalysis(doc, data) {
         
         doc.moveDown();
         
-        analysis.compliant_articles.forEach((article, index) => {
+        (analysis.compliant_articles || []).forEach((article, index) => {
             if (doc.y > 650) {
                 doc.addPage();
             }
@@ -228,7 +244,7 @@ function addArticleAnalysis(doc, data) {
         
         doc.moveDown();
         
-        analysis.non_compliant_articles.forEach((article, index) => {
+        (analysis.non_compliant_articles || []).forEach((article, index) => {
             if (doc.y > 650) {
                 doc.addPage();
             }
@@ -331,8 +347,12 @@ function addComplianceMappings(doc, data) {
         
         doc.moveDown(0.5);
         doc.fontSize(10)
+        const page = mapping.snippet_location?.page || 'N/A';
+        const para = mapping.snippet_location?.paragraph || 'N/A';
+        
+        doc.fontSize(10)
             .font('Helvetica-Bold')
-            .text('Document Text (Page ' + mapping.snippet_location.page + ', Para ' + mapping.snippet_location.paragraph + '):');
+            .text(`Document Text (Loc: ${page}, ${para}):`);
         
         doc.fontSize(10)
             .font('Helvetica')
@@ -451,6 +471,39 @@ function addViolationsSection(doc, data) {
         doc.moveTo(doc.x, doc.y)
             .lineTo(doc.page.width - 100, doc.y)
             .stroke();
+    });
+}
+
+function addVerifiedReferencesSection(doc, data) {
+    doc.fontSize(18)
+        .font('Helvetica-Bold')
+        .text('5. LEGAL VERIFICATION & CITATIONS');
+    
+    doc.moveDown();
+    doc.fontSize(12)
+        .font('Helvetica-Oblique')
+        .text('Verification of external legal authorities referenced in the document.');
+    
+    doc.moveDown();
+    
+    data.verified_references.forEach(ref => {
+        if (doc.y > 700) doc.addPage();
+        
+        const statusColor = ref.status === 'VALID' ? 'green' : ref.status === 'MISCITED' ? 'red' : 'orange';
+        
+        doc.fontSize(12)
+            .font('Helvetica-Bold')
+            .fillColor(statusColor)
+            .text(`• ${ref.reference}`, { continued: true })
+            .fillColor('black')
+            .font('Helvetica')
+            .text(` (${ref.source})`);
+        
+        doc.fontSize(10)
+            .font('Helvetica-Oblique')
+            .text(`   Status: ${ref.status} | Context: ${ref.context}`, { indent: 20 });
+        
+        doc.moveDown(0.5);
     });
 }
 

@@ -26,7 +26,10 @@ import {
     DialogContentText,
     DialogActions,
     ListItemIcon,
-    Tooltip
+    Tooltip,
+    Accordion,
+    AccordionSummary,
+    AccordionDetails
 } from '@mui/material';
 import MuiAlert from '@mui/material/Alert';
 import {
@@ -57,7 +60,10 @@ import {
     Download,
     Visibility,
     Gavel,
-    Close
+    Close,
+    ExpandMore,
+    CloudUpload,
+    History
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -312,7 +318,7 @@ const ChatInterface = () => {
         if (!itemToDelete) return;
 
         try {
-            if (itemToDelete.type === 'document') {
+            if (itemToDelete.type === 'document' || itemToDelete.type === 'uploaded_document') {
                 const doc = itemToDelete.data;
                 const docId = doc.id || doc._id;
                 
@@ -820,7 +826,7 @@ const ChatInterface = () => {
                 <List sx={{ flexGrow: 1, overflow: 'auto', px: 1 }}>
                     {filteredChats.map((chat, index) => (
                         <ListItem
-                            key={(chat.id || chat._id) ? `${chat.id || chat._id}-${index}` : `chat-${index}`}
+                            key={chat.id || chat._id || `chat-${index}`}
                             disablePadding
                             sx={{ mb: 0.5 }}
                             secondaryAction={
@@ -925,12 +931,12 @@ const ChatInterface = () => {
                         <IconButton onClick={() => setLeftOpen(!leftOpen)}>
                             {leftOpen ? <ChevronLeft /> : <MenuIcon />}
                         </IconButton>
+                        <ThemeSwitcher />
                         <Typography variant="subtitle1" fontWeight={600}>
                             {activeChat?.title || 'New Conversation'}
                         </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ThemeSwitcher variant="icon" />
                         <IconButton onClick={() => setRightOpen(!rightOpen)}>
                             {rightOpen ? <ChevronRight /> : <ChevronLeft />}
                         </IconButton>
@@ -1355,432 +1361,269 @@ const ChatInterface = () => {
                     },
                 }}
             >
-                <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Typography variant="subtitle2" fontWeight={600}>
-                        DOCUMENTS
+                <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ letterSpacing: 1 }}>
+                        DOCUMENT HUB
                     </Typography>
                     <IconButton onClick={() => setRightOpen(false)} size="small">
-                        <ChevronRight />
+                        <Close fontSize="small" />
                     </IconButton>
                 </Box>
 
-                <Divider sx={{ borderColor: 'divider' }} />
-
-                <Box sx={{ p: 2 }}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, display: 'block' }}>
-                        Templates
-                    </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        {documentTemplates.map((template) => (
-                            <Paper
-                                key={template.id}
-                                elevation={0}
-                                onClick={() => handleDocumentTemplate(template)}
-                                sx={{
-                                    p: 1.5,
-                                    cursor: 'pointer',
-                                    background: 'background.default',
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    borderRadius: '2px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 2,
-                                    transition: 'all 0.2s',
-                                    '&:hover': {
-                                        background: 'action.hover',
-                                        borderColor: 'primary.main',
-                                        transform: 'translateX(4px)'
-                                    }
-                                }}
-                            >
-                                <Box 
-                                    sx={{ 
-                                        color: 'primary.main',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                >
-                                    {getDocumentIcon(template.icon)}
-                                </Box>
-                                <Typography 
-                                    variant="body2" 
-                                    sx={{ 
-                                        fontWeight: 600,
-                                        color: 'text.primary' // Black in light mode as requested
-                                    }}
-                                >
-                                    {template.name}
+                <Box sx={{ flexGrow: 1, overflow: 'auto', bgcolor: 'background.default' }}>
+                    {/* Section: Generate Document */}
+                    <Accordion disableGutters elevation={0} defaultExpanded sx={{ bgcolor: 'transparent', borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <AccordionSummary expandIcon={<ExpandMore />} sx={{ px: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <CloudUpload color="primary" fontSize="small" />
+                                <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem' }}>
+                                    Generate Document
                                 </Typography>
-                            </Paper>
-                        ))}
-                    </Box>
-                </Box>
-
-                <Divider sx={{ borderColor: 'divider' }} />
-
-                <Box sx={{ p: 2, flexGrow: 1, overflow: 'auto' }}>
-                    {/* Chat Specific Documents */}
-                    {activeChat && (
-                        <>
-                            <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, display: 'block' }}>
-                                Documents in this Chat
-                            </Typography>
-                            <List disablePadding sx={{ mb: 3 }}>
-                                {uploadedDocs.filter(doc => {
-                                    const chatId = activeChat.id || activeChat._id;
-                                    const docChatId = doc.chatId || (doc.metadata && doc.metadata.chatId);
-                                    // Match by explicit chatId OR if doc ID is in conversation's documentIds
-                                    return (docChatId === chatId) || (activeChat.documentIds && activeChat.documentIds.includes(doc.id || doc._id));
-                                }).map((doc, index) => (
-                                    <ListItem
-                                        key={(doc._id || doc.id) ? `${doc._id || doc.id}-${index}` : `doc-${index}`}
-                                        disablePadding
-                                        sx={{ mb: 1 }}
+                            </Box>
+                        </AccordionSummary>
+                        <AccordionDetails sx={{ px: 2, pb: 2 }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {documentTemplates.map((template, idx) => (
+                                    <motion.div
+                                        key={template.id}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: idx * 0.05 }}
                                     >
                                         <Paper
                                             elevation={0}
+                                            onClick={() => handleDocumentTemplate(template)}
                                             sx={{
-                                                width: '100%',
-                                                p: 1,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: 1.5,
-                                                background: 'action.hover',
+                                                p: 1.5,
+                                                cursor: 'pointer',
+                                                background: 'background.paper',
                                                 border: '1px solid',
                                                 borderColor: 'divider',
                                                 borderRadius: '2px',
-                                                minHeight: '40px'
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 2,
+                                                transition: 'all 0.2s',
+                                                '&:hover': {
+                                                    background: 'action.hover',
+                                                    borderColor: 'primary.main',
+                                                    transform: 'translateX(4px)'
+                                                }
                                             }}
                                         >
-                                            <Avatar
-                                                sx={{
-                                                    bgcolor: 'primary.main',
-                                                    color: 'white',
-                                                    width: 32,
-                                                    height: 32
+                                            <Box sx={{ color: 'primary.main', display: 'flex' }}>
+                                                {getDocumentIcon(template.icon)}
+                                            </Box>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                {template.name}
+                                            </Typography>
+                                        </Paper>
+                                    </motion.div>
+                                ))}
+                            </Box>
+                        </AccordionDetails>
+                    </Accordion>
+
+                    {/* Section: Uploaded Documents */}
+                    <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <AccordionSummary expandIcon={<ExpandMore />} sx={{ px: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <Description color="primary" fontSize="small" />
+                                <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem' }}>
+                                    Uploaded Documents
+                                </Typography>
+                            </Box>
+                        </AccordionSummary>
+                        <AccordionDetails sx={{ px: 0, pb: 0 }}>
+                            <List disablePadding>
+                                {uploadedDocs.length === 0 ? (
+                                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                            No files uploaded yet
+                                        </Typography>
+                                    </Box>
+                                ) : (
+                                    uploadedDocs.map((doc, index) => (
+                                        <motion.div
+                                            key={doc._id || index}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: index * 0.03 }}
+                                        >
+                                            <ListItem
+                                                sx={{ 
+                                                    px: 2, 
+                                                    py: 1, 
+                                                    borderBottom: '1px solid', 
+                                                    borderColor: 'divider',
+                                                    '&:hover': { bgcolor: 'action.hover' }
                                                 }}
                                             >
-                                                <Description fontSize="small" />
-                                            </Avatar>
-                                            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                                                <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                                                    {doc.filename || doc.originalName}
-                                                </Typography>
-                                                {doc.docType && (
-                                                    <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'primary.main', display: 'block' }}>
-                                                        {doc.docType}
-                                                    </Typography>
-                                                )}
-                                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                                    {new Date(doc.uploadDate || doc.createdAt).toLocaleDateString()}
-                                                </Typography>
-                                            </Box>
-                                            <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                                 <Tooltip title="View">
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => window.open(doc.s3Url || doc.url, '_blank')}
-                                                        sx={{ color: 'primary.main' }}
-                                                    >
-                                                        <Visibility fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            </Box>
-                                        </Paper>
-                                    </ListItem>
-                                ))}
-                                {uploadedDocs.filter(doc => {
-                                     const chatId = activeChat.id || activeChat._id;
-                                     const docChatId = doc.chatId || (doc.metadata && doc.metadata.chatId);
-                                     return (docChatId === chatId) || (activeChat.documentIds && activeChat.documentIds.includes(doc.id || doc._id));
-                                }).length === 0 && (
-                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', display: 'block', mb: 1 }}>
-                                        No documents in this chat
-                                    </Typography>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', minWidth: 0 }}>
+                                                    <Avatar sx={{ bgcolor: 'action.selected', color: 'primary.main', width: 32, height: 32 }}>
+                                                        <Description fontSize="small" />
+                                                    </Avatar>
+                                                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                                        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                                            {doc.filename}
+                                                        </Typography>
+                                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                                                            {new Date(doc.uploadDate).toLocaleDateString()}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                        <Tooltip title="Download">
+                                                            <IconButton 
+                                                                size="small" 
+                                                                color="success"
+                                                                onClick={async () => {
+                                                                    const result = await documentAPI.getDownloadUrl(doc.id || doc._id);
+                                                                    if (result.success) {
+                                                                        const link = document.createElement('a');
+                                                                        link.href = result.data.url;
+                                                                        link.download = doc.filename;
+                                                                        document.body.appendChild(link);
+                                                                        link.click();
+                                                                        document.body.removeChild(link);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Download fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        <Tooltip title="Delete">
+                                                            <IconButton
+                                                                size="small"
+                                                                color="error"
+                                                                onClick={() => handleDeleteClick('uploaded_document', doc)}
+                                                            >
+                                                                <Delete fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                        <Tooltip title="View">
+                                                            <IconButton 
+                                                                size="small" 
+                                                                onClick={async () => {
+                                                                    const result = await documentAPI.getDownloadUrl(doc.id || doc._id);
+                                                                    if (result.success) window.open(result.data.url, '_blank');
+                                                                }}
+                                                            >
+                                                                <Visibility fontSize="small" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </Box>
+                                                </Box>
+                                            </ListItem>
+                                        </motion.div>
+                                    ))
                                 )}
                             </List>
-                            <Divider sx={{ mb: 2, borderColor: 'divider' }} />
-                        </>
-                    )}
+                        </AccordionDetails>
+                    </Accordion>
 
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, display: 'block' }}>
-                        All Uploaded Files
-                    </Typography>
-                    <List disablePadding>
-                        {uploadedDocs.map((doc) => (
-                            <ListItem
-                                key={doc._id}
-                                disablePadding
-                                sx={{ mb: 1 }}
-                            >
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        width: '100%',
-                                        p: 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1.5,
-                                        background: 'action.hover',
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        borderRadius: '2px',
-                                        minHeight: '40px'
-                                    }}
-                                >
-                                    <Avatar
-                                        sx={{
-                                            bgcolor: 'action.selected',
-                                            color: 'primary.main',
-                                            width: 32,
-                                            height: 32
-                                        }}
-                                    >
-                                        <Description fontSize="small" />
-                                    </Avatar>
-                                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                                        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
-                                            {doc.filename}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                            {new Date(doc.uploadDate).toLocaleDateString()}
+                    {/* Section: Generated Documents */}
+                    <Accordion disableGutters elevation={0} sx={{ bgcolor: 'transparent', borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <AccordionSummary expandIcon={<ExpandMore />} sx={{ px: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <History color="primary" fontSize="small" />
+                                <Typography variant="body2" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem' }}>
+                                    Generated Documents
+                                </Typography>
+                            </Box>
+                        </AccordionSummary>
+                        <AccordionDetails sx={{ px: 0, pb: 0 }}>
+                            <List disablePadding>
+                                {generatedDocs.length === 0 ? (
+                                    <Box sx={{ p: 3, textAlign: 'center' }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                            No documents generated yet
                                         </Typography>
                                     </Box>
-                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                        <Tooltip title="Open in New Tab">
-                                            <IconButton
-                                                size="small"
-                                                onClick={async () => {
-                                                    try {
-                                                        const result = await documentAPI.getDownloadUrl(doc.id || doc._id);
-                                                        if (result.success && result.data.url) {
-                                                            window.open(result.data.url, '_blank', 'noopener,noreferrer');
-                                                        }
-                                                    } catch (err) {
-                                                        console.error('Error opening document:', err);
-                                                    }
-                                                }}
+                                ) : (
+                                    generatedDocs.map((doc, index) => (
+                                        <motion.div
+                                            key={doc._id || index}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: index * 0.03 }}
+                                        >
+                                            <ListItem
                                                 sx={{ 
-                                                    color: 'primary.main',
+                                                    px: 2, 
+                                                    py: 1.5, 
+                                                    borderBottom: '1px solid', 
+                                                    borderColor: 'divider',
                                                     '&:hover': { bgcolor: 'action.hover' }
                                                 }}
                                             >
-                                                <OpenInNew fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Download">
-                                            <IconButton
-                                                size="small"
-                                                onClick={async () => {
-                                                    try {
-                                                        const result = await documentAPI.getDownloadUrl(doc.id || doc._id);
-                                                        if (result.success && result.data.url) {
-                                                            const link = document.createElement('a');
-                                                            link.href = result.data.url;
-                                                            link.download = result.data.filename || doc.filename;
-                                                            link.target = '_blank';
-                                                            document.body.appendChild(link);
-                                                            link.click();
-                                                            document.body.removeChild(link);
-                                                        }
-                                                    } catch (err) {
-                                                        console.error('Error downloading document:', err);
-                                                    }
-                                                }}
-                                                sx={{ 
-                                                    color: 'success.main',
-                                                    '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.1)' }
-                                                }}
-                                            >
-                                                <Download fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Delete">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => {
-                                                    setItemToDelete({ type: 'document', data: doc });
-                                                    setDeleteDialogOpen(true);
-                                                }}
-                                                sx={{ 
-                                                    color: 'error.main',
-                                                    '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.1)' }
-                                                }}
-                                            >
-                                                <Delete fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Box>
-                                </Paper>
-                            </ListItem>
-                        ))}
-                        {uploadedDocs.length === 0 && (
-                            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                No files uploaded yet
-                            </Typography>
-                        )}
-                    </List>
-
-                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5, mb: 1, mt: 3, display: 'block' }}>
-                        Generated Documents
-                    </Typography>
-                    <List disablePadding>
-                        {generatedDocs.map((doc) => (
-                            <ListItem
-                                key={doc._id}
-                                disablePadding
-                                sx={{ mb: 1 }}
-                            >
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        width: '100%',
-                                        p: 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1.5,
-                                        background: 'action.hover',
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        borderRadius: '2px',
-                                        minHeight: '40px'
-                                    }}
-                                >
-                                    <Avatar
-                                        sx={{
-                                            bgcolor: 'action.selected',
-                                            color: 'primary.main',
-                                            width: 32,
-                                            height: 32
-                                        }}
-                                    >
-                                        <Description fontSize="small" />
-                                    </Avatar>
-                                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                                        <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem' }}>
-                                            {doc.fileName}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                                            {new Date(doc.createdAt).toLocaleDateString()}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                        <Tooltip title="Open in New Tab">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => {
-                                                    const url = doc.viewUrl || doc.htmlUrl;
-                                                    if (!url) {
-                                                        console.error('No viewUrl or htmlUrl available for document:', doc);
-                                                        return;
-                                                    }
-                                                    const fullUrl = url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
-                                                    window.open(fullUrl, '_blank');
-                                                }}
-                                                sx={{ 
-                                                    color: 'primary.main',
-                                                    '&:hover': { bgcolor: 'action.hover' }
-                                                }}
-                                            >
-                                                <OpenInNew fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Download PDF">
-                                            <IconButton
-                                                size="small"
-                                                onClick={async () => {
-                                                    try {
-                                                        setIsDownloading(true);
-                                                        const url = doc.viewUrl || doc.htmlUrl;
-                                                        if (!url) {
-                                                            console.error('No viewUrl or htmlUrl available for document:', doc);
-                                                            return;
-                                                        }
-                                                        const fullUrl = url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
-                                                        
-                                                        // Fetch HTML content
-                                                        const response = await fetch(fullUrl);
-                                                        if (!response.ok) throw new Error('Failed to fetch document content');
-                                                        const htmlContent = await response.text();
-
-                                                        // Create temporary container with strict isolation
-                                                        const container = document.createElement('div');
-                                                        container.style.position = 'fixed';
-                                                        container.style.top = '0';
-                                                        container.style.left = '0';
-                                                        container.style.width = '0';
-                                                        container.style.height = '0';
-                                                        container.style.overflow = 'hidden';
-                                                        container.style.visibility = 'hidden';
-                                                        container.style.zIndex = '-9999';
-                                                        container.style.pointerEvents = 'none';
-                                                        document.body.appendChild(container);
-
-                                                        // Create the content element inside the container
-                                                        const element = document.createElement('div');
-                                                        element.innerHTML = htmlContent;
-                                                        element.style.width = '210mm'; // A4 width
-                                                        container.appendChild(element);
-
-                                                        // Generate PDF
-                                                        const opt = {
-                                                            margin: 10,
-                                                            filename: doc.fileName ? doc.fileName.replace('.html', '.pdf') : 'document.pdf',
-                                                            image: { type: 'jpeg', quality: 0.98 },
-                                                            html2canvas: { 
-                                                                scale: 2, 
-                                                                useCORS: true,
-                                                                scrollX: 0,
-                                                                scrollY: 0,
-                                                                windowWidth: document.documentElement.offsetWidth,
-                                                                windowHeight: document.documentElement.offsetHeight
-                                                            },
-                                                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-                                                        };
-
-                                                        await html2pdf().set(opt).from(element).save();
-                                                        
-                                                        // Cleanup
-                                                        document.body.removeChild(container);
-                                                    } catch (error) {
-                                                        console.error('PDF generation error:', error);
-                                                        alert('Failed to generate PDF');
-                                                    } finally {
-                                                        setIsDownloading(false);
-                                                    }
-                                                }}
-                                                sx={{ 
-                                                    color: 'success.main',
-                                                    '&:hover': { bgcolor: 'rgba(46, 125, 50, 0.1)' }
-                                                }}
-                                            >
-                                                <Download fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Delete">
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => handleDocMenuOpen(e, doc)}
-                                                sx={{ 
-                                                    color: 'error.main',
-                                                    '&:hover': { bgcolor: 'rgba(211, 47, 47, 0.1)' }
-                                                }}
-                                            >
-                                                <Delete fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </Box>
-                                </Paper>
-                            </ListItem>
-                        ))}
-                        {generatedDocs.length === 0 && (
-                            <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                No documents generated yet
-                            </Typography>
-                        )}
-                    </List>
+                                                <Box sx={{ width: '100%' }}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
+                                                        <Avatar sx={{ bgcolor: 'secondary.light', color: 'secondary.dark', width: 32, height: 32 }}>
+                                                            <Gavel fontSize="small" />
+                                                        </Avatar>
+                                                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                                                            <Typography variant="body2" noWrap sx={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                                                {doc.fileName}
+                                                            </Typography>
+                                                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                                                                {new Date(doc.createdAt).toLocaleDateString()}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                                        <IconButton 
+                                                            size="small" 
+                                                            onClick={() => {
+                                                                const url = doc.viewUrl || doc.htmlUrl;
+                                                                const fullUrl = url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
+                                                                window.open(fullUrl, '_blank');
+                                                            }}
+                                                        >
+                                                            <OpenInNew fontSize="small" />
+                                                        </IconButton>
+                                                        <IconButton 
+                                                            size="small" 
+                                                            color="success"
+                                                            onClick={async () => {
+                                                                try {
+                                                                    setIsDownloading(true);
+                                                                    const url = doc.viewUrl || doc.htmlUrl;
+                                                                    const fullUrl = url.startsWith('http') ? url : `https://midl.comsats.edu.pk/legalize${url}`;
+                                                                    const response = await fetch(fullUrl);
+                                                                    const htmlContent = await response.text();
+                                                                    const opt = {
+                                                                        margin: 10,
+                                                                        filename: doc.fileName.replace('.html', '.pdf'),
+                                                                        image: { type: 'jpeg', quality: 0.98 },
+                                                                        html2canvas: { scale: 2 },
+                                                                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                                                    };
+                                                                    await html2pdf().set(opt).from(htmlContent).save();
+                                                                } catch (err) {
+                                                                    console.error('PDF Error:', err);
+                                                                } finally {
+                                                                    setIsDownloading(false);
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Download fontSize="small" />
+                                                        </IconButton>
+                                                        <IconButton
+                                                            size="small"
+                                                            color="error"
+                                                            onClick={(e) => handleDocMenuOpen(e, doc)}
+                                                        >
+                                                            <Delete fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+                                                </Box>
+                                            </ListItem>
+                                        </motion.div>
+                                    ))
+                                )}
+                            </List>
+                        </AccordionDetails>
+                    </Accordion>
                 </Box>
             </Drawer>
 
