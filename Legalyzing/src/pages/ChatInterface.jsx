@@ -1070,19 +1070,66 @@ const ChatInterface = () => {
                                                             h2: ({node, ...props}) => <Typography variant="h6" sx={{ fontWeight: 700, mt: 2, mb: 1, wordBreak: 'break-word' }} {...props} />,
                                                             h3: ({node, ...props}) => <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 1.5, mb: 0.5, wordBreak: 'break-word' }} {...props} />,
                                                             hr: ({node, ...props}) => <Divider sx={{ my: 1.5 }} {...props} />,
-                                                            code: ({node, inline, ...props}) => (
-                                                                <code 
-                                                                    style={{ 
-                                                                        background: 'rgba(0,0,0,0.1)', 
-                                                                        padding: '2px 4px', 
-                                                                        borderRadius: '4px',
-                                                                        fontSize: '0.85rem',
-                                                                        whiteSpace: 'pre-wrap',
-                                                                        wordBreak: 'break-word'
-                                                                    }} 
-                                                                    {...props} 
-                                                                />
-                                                            ),
+                                                            code: ({node, inline, className, children, ...props}) => {
+                                                                const match = /language-(\w+)/.exec(className || '');
+                                                                const isStrategy = match && match[1] === 'strategy';
+                                                                
+                                                                if (!inline && isStrategy) {
+                                                                    return (
+                                                                        <Accordion 
+                                                                            disableGutters 
+                                                                            elevation={0} 
+                                                                            sx={{ 
+                                                                                bgcolor: 'action.hover', 
+                                                                                my: 1, 
+                                                                                borderRadius: '4px',
+                                                                                border: '1px solid',
+                                                                                borderColor: 'divider',
+                                                                                '&:before': { display: 'none' }
+                                                                            }}
+                                                                        >
+                                                                            <AccordionSummary 
+                                                                                expandIcon={<ExpandMore fontSize="small" />}
+                                                                                sx={{ minHeight: 40, height: 40, px: 2 }}
+                                                                            >
+                                                                                <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'primary.main' }}>
+                                                                                    Strategic Reasoning (Click to Unveil)
+                                                                                </Typography>
+                                                                            </AccordionSummary>
+                                                                            <AccordionDetails sx={{ pt: 0, px: 2, pb: 1.5 }}>
+                                                                                <Box sx={{ 
+                                                                                    '& ul': { mt: 0, mb: 0 },
+                                                                                    '& li': { fontSize: '0.85rem', color: 'text.secondary', py: 0.25 }
+                                                                                }}>
+                                                                                    <ReactMarkdown components={{
+                                                                                        p: ({node, ...props}) => <Typography variant="body2" sx={{ fontSize: '0.85rem' }} {...props} />,
+                                                                                        li: ({node, ...props}) => <li style={{ marginBottom: '2px' }} {...props} />
+                                                                                    }}>
+                                                                                        {String(children).replace(/\n$/, '')}
+                                                                                    </ReactMarkdown>
+                                                                                </Box>
+                                                                            </AccordionDetails>
+                                                                        </Accordion>
+                                                                    );
+                                                                }
+
+                                                                return (
+                                                                    <code 
+                                                                        className={className}
+                                                                        style={{ 
+                                                                            background: 'rgba(0,0,0,0.1)', 
+                                                                            padding: '2px 4px', 
+                                                                            borderRadius: '4px',
+                                                                            fontSize: '0.85rem',
+                                                                            whiteSpace: 'pre-wrap',
+                                                                            wordBreak: 'break-word'
+                                                                        }} 
+                                                                        {...props} 
+                                                                    >
+                                                                        {children}
+                                                                    </code>
+                                                                );
+                                                            },
                                                             pre: ({node, ...props}) => (
                                                                 <pre 
                                                                     style={{ 

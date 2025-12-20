@@ -516,10 +516,11 @@ function generateStrictMarkdown(report) {
             
             if (m.reasoningChain && m.reasoningChain.length > 0) {
                 md += `**🧠 Strategic Reasoning:**\n`;
+                md += `\`\`\`strategy\n`;
                 m.reasoningChain.forEach(step => {
                     md += `- ${step}\n`;
                 });
-                md += `\n`;
+                md += `\`\`\`\n\n`;
             }
             md += `**📝 Actionable Redline (Proposed Fix):**\n`;
             md += `> ${m.proposedFix || 'Recommend redrafting to align with ' + m.constitution_match.article}\n\n`;
