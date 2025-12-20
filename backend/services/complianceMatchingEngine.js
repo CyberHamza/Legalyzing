@@ -381,12 +381,19 @@ async function processThematicCompliance(documentText, documentMeta = {}) {
         1. Decide: YES (Compliant), NO (Violation), PARTIAL (Ambiguous).
         2. Identify specific "Loopholes" or "Conflicts".
         3. Provide a "Proposed Fix" (Exact redline text).
+        4. Generate an "Explainable Reasoning Chain" showing exactly how you reached this conclusion step-by-step.
         
         Return JSON object:
         {
           "decision": "YES|NO|PARTIAL",
           "confidence": 0-100,
-          "rationale": "...",
+          "rationale": "Overall summary of findings",
+          "reasoningChain": [
+            "Step 1: Extracted core directive from document...",
+            "Step 2: Compared against Constitutional Article...",
+            "Step 3: Identified divergence/alignment regarding...",
+            "Step 4: Concluded status as..."
+          ],
           "loophole": "State the conflict clearly",
           "proposedFix": "Corrected legal text"
         }`;
@@ -406,6 +413,7 @@ async function processThematicCompliance(documentText, documentMeta = {}) {
             decision: result.decision,
             confidence: result.confidence,
             rationale: result.rationale,
+            reasoningChain: result.reasoningChain || [],
             loophole: result.loophole,
             proposedFix: result.proposedFix,
             constitution_match: {

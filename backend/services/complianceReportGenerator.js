@@ -496,6 +496,14 @@ function generateStrictMarkdown(report) {
             md += `### ❌ Conflict #${idx + 1}: ${m.section_title || 'Legal Provision'}\n`;
             md += `**Issue:** ${m.loophole || m.rationale}\n\n`;
             md += `**Constitutional Basis:** ${m.constitution_match.article} — *${m.constitution_match.articleHeading}*\n\n`;
+            
+            if (m.reasoningChain && m.reasoningChain.length > 0) {
+                md += `**🧠 Strategic Reasoning:**\n`;
+                m.reasoningChain.forEach(step => {
+                    md += `- ${step}\n`;
+                });
+                md += `\n`;
+            }
             md += `**📝 Actionable Redline (Proposed Fix):**\n`;
             md += `> ${m.proposedFix || 'Recommend redrafting to align with ' + m.constitution_match.article}\n\n`;
             md += `---\n\n`;
