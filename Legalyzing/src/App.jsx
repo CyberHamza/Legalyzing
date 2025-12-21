@@ -1,14 +1,17 @@
 import React, { useState, useMemo, createContext, useContext, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { getDesignTokens, getThemedCssVariables } from './styles/theme';
 import { DEFAULT_THEME, PALETTES } from './styles/themeConfig';
 import { AuthProvider } from './context/AuthContext';
+import { ColorModeContext } from './context/ThemeContext'; // Import from new file
 import './App.css';
 
 // Components
 import ThemeSwitcher from './components/ThemeSwitcher';
+import SystemAnnouncement from './components/SystemAnnouncement';
+import AdminLayout from './components/AdminLayout';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -18,13 +21,14 @@ import ChatInterface from './pages/ChatInterface';
 import DocumentForm from './pages/DocumentForm';
 import VerifyEmail from './pages/VerifyEmail';
 import GoogleAuthSuccess from './pages/GoogleAuthSuccess';
+import AdminDashboard from './pages/admin/Dashboard';
+import KnowledgeBase from './pages/admin/KnowledgeBase';
+import UserManagement from './pages/admin/UserManagement';
+import PromptEngineering from './pages/admin/PromptEngineering';
+import Analytics from './pages/admin/Analytics';
+import Reports from './pages/admin/Reports';
+import Settings from './pages/admin/Settings';
 
-// Color Mode Context
-export const ColorModeContext = createContext({ 
-  setTheme: () => {},
-  mode: DEFAULT_THEME,
-  allThemes: [] 
-});
 
 export const useColorMode = () => useContext(ColorModeContext);
 
@@ -37,9 +41,19 @@ function App() {
     return (savedTheme && PALETTES[savedTheme]) ? savedTheme : DEFAULT_THEME;
   });
 
+  const [customTheme, setCustomTheme] = useState(null);
+
   // Inject CSS Variables for global styles (App.css compatibility)
   useEffect(() => {
-    const cssVars = getThemedCssVariables(activeTheme);
+    // Check if it's a custom theme
+    const isCustom = activeTheme === 'custom';
+    // If custom and no custom theme data, revert to default
+    if (isCustom && !customTheme) { 
+        setActiveTheme(DEFAULT_THEME);
+        return;
+    }
+
+    const cssVars = getThemedCssVariables(activeTheme, customTheme);
     const root = document.documentElement;
     
     // Apply variables to root
@@ -49,22 +63,32 @@ function App() {
 
     // Save persistence
     localStorage.setItem(THEME_STORAGE_KEY, activeTheme);
-  }, [activeTheme]);
+  }, [activeTheme, customTheme]);
 
   const colorMode = useMemo(
     () => ({
       setTheme: (themeKey) => {
-        if (PALETTES[themeKey]) {
-          setActiveTheme(themeKey);
-        }
+        setActiveTheme(themeKey);
+      },
+      setCustomTheme: (palette) => {
+        setCustomTheme(palette);
+        setActiveTheme('custom');
       },
       mode: activeTheme,
       allThemes: Object.keys(PALETTES),
+      customTheme: customTheme
     }),
-    [activeTheme],
+    [activeTheme, customTheme],
   );
 
-  const theme = useMemo(() => createTheme(getDesignTokens(activeTheme)), [activeTheme]);
+  const theme = useMemo(() => {
+      if (activeTheme === 'custom' && customTheme) {
+          // Create theme from custom palette
+          // We need to shim the getDesignTokens to accept the raw object
+          return createTheme(getDesignTokens('custom', customTheme));
+      }
+      return createTheme(getDesignTokens(activeTheme));
+  }, [activeTheme, customTheme]);
 
   return (
     <AuthProvider>
@@ -72,6 +96,7 @@ function App() {
         <ThemeProvider theme={theme}>
           <CssBaseline />
           <Router>
+            <SystemAnnouncement />
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/signup" element={<SignUp />} />
@@ -80,6 +105,18 @@ function App() {
               <Route path="/document/:type" element={<DocumentForm />} />
               <Route path="/verify-email/:token" element={<VerifyEmail />} />
               <Route path="/auth/google/success" element={<GoogleAuthSuccess />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="dashboard" element={<Analytics />} />
+                <Route path="knowledge-base" element={<KnowledgeBase />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="prompts" element={<PromptEngineering />} />
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="settings" element={<Settings />} />
+              </Route>
             </Routes>
             {/* Theme Switcher removed - UI moved to LandingPage header */} 
           </Router>

@@ -149,7 +149,8 @@ RESPONSE FORMAT: JSON
      * Generate the final cited response
      */
     static async generateAgenticResponse(query, context, routing, history, options) {
-        const systemPrompt = getPakistanSystemPrompt({
+        // Now awaiting the dynamic prompt from DB
+        const systemPrompt = await getPakistanSystemPrompt({
             caseType: routing.domain,
             hasDocumentContext: routing.tools.includes('user-documents')
         });

@@ -62,7 +62,7 @@ import { PALETTES } from '../styles/themeConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn, slideInFromBottom, slideInFromLeft, slideInFromRight, staggerContainer } from '../utils/animations';
 import { scrollToSection } from '../utils/helpers';
-import { useColorMode } from '../App';
+import { useColorMode } from '../context/ThemeContext';
 import { contactAPI } from '../utils/api';
 // ThemeSwitcher removed as per request
 

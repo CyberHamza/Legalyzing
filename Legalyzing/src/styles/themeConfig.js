@@ -144,4 +144,42 @@ export const PALETTES = {
   }
 };
 
-export const DEFAULT_THEME = 'palette4'; // Midnight Teal as default (popular dark mode)
+export const DEFAULT_THEME = 'palette4';
+
+// Helper to generate a palette object from diverse inputs
+export const generatePalette = (input, name = 'Custom Theme') => {
+    // If input is a string, it's a single hex (Legacy/Simple mode)
+    if (typeof input === 'string') {
+        const baseColor = input; 
+        return {
+            name: name,
+            mode: 'light',
+            colors: [baseColor, baseColor, '#FFFFFF', '#FFFFFF'],
+            primary: baseColor,
+            secondary: baseColor, 
+            accent: baseColor,
+            background: '#F5F5F5',
+            surface: '#FFFFFF',
+            text: { primary: '#000000', secondary: baseColor },
+            isCustom: true
+        };
+    }
+
+    // Advanced Object Mode
+    /* Expected input: { primary, secondary, accent, background, surface, textMain } */
+    return {
+        name: name,
+        mode: 'light',
+        colors: [input.primary, input.secondary, input.accent, input.background],
+        primary: input.primary,
+        secondary: input.secondary,
+        accent: input.accent,
+        background: input.background,
+        surface: input.surface,
+        text: {
+            primary: input.textMain,
+            secondary: input.secondary
+        },
+        isCustom: true
+    };
+};

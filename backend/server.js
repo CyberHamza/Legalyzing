@@ -13,6 +13,13 @@ const smartGenerateRoutes = require('./routes/smartGenerate');
 const constitutionalComplianceRoutes = require('./routes/constitutionalCompliance');
 const judgmentRoutes = require('./routes/judgments');
 const caseBuildingRoutes = require('./routes/caseBuilding');
+let adminRoutes;
+try {
+    adminRoutes = require('./routes/admin'); // Import Admin Routes
+} catch (error) {
+    console.error("FATAL ERROR LOADING ADMIN ROUTES:", error);
+    process.exit(1);
+}
 
 // Initialize Express app
 const app = express();
@@ -24,6 +31,7 @@ app.set('trust proxy', 1);
 const passport = require('./config/passport');
 app.use(passport.initialize());
 
+// Connect to MongoDB
 // Connect to MongoDB
 connectDB();
 
@@ -48,7 +56,7 @@ const limiter = rateLimit({
 });
 
 // Apply rate limiting to all routes
-app.use('/api/', limiter);
+app.use(limiter);
 
 // Stricter rate limiting for auth routes
 const authLimiter = rateLimit({
@@ -61,7 +69,7 @@ const authLimiter = rateLimit({
 });
 
 //Routes
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/contact', contactRoutes);
@@ -70,6 +78,9 @@ app.use('/api/smart-generate', smartGenerateRoutes);
 app.use('/api/constitutional-compliance', constitutionalComplianceRoutes);
 app.use('/api/judgments', judgmentRoutes);
 app.use('/api/case-building', caseBuildingRoutes);
+if (adminRoutes) {
+    app.use('/api/admin', adminRoutes); // Register Admin Routes
+}
 
 // Health check route
 app.get('/api/health', (req, res) => {

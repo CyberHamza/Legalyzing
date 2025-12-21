@@ -48,6 +48,11 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: false
         },
+        role: {
+            type: String,
+            enum: ['user', 'admin', 'superadmin'],
+            default: 'user'
+        },
         verificationToken: String,
         googleId: {
             type: String,
@@ -62,6 +67,9 @@ const userSchema = new mongoose.Schema(
             type: Date,
             default: null
         },
+        disabledFeatures: [{
+            type: String // e.g., 'compliance', 'chat', 'documents'
+        }],
         extractedFacts: {
             type: {
                 personal: {

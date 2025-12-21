@@ -104,11 +104,21 @@ const SignIn = () => {
             const result = await login(formData.email, formData.password);
             
             if (result.success) {
-                // Successfully logged in, navigate to chat
-                navigate('/chat');
+                // If user is admin/superadmin, redirect to admin dashboard
+                if (result.user.role === 'admin' || result.user.role === 'superadmin') {
+                    navigate('/admin/dashboard');
+                } else {
+                    navigate('/chat');
+                }
             } else {
                 // Show error message
-                setApiError(result.error || 'Login failed. Please try again.');
+                const errorMsg = result.error || 'Login failed. Please try again.';
+                setApiError(errorMsg);
+                
+                // If maintenance mode, we can optionally clear form or redirect, but showing the alert is enough.
+                if (result.status === 503 || errorMsg.includes('maintenance')) {
+                    setApiError('We apologize we are currently in the maintenance phase please try again later');
+                }
             }
         }
     };

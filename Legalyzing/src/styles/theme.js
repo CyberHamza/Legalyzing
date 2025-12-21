@@ -2,8 +2,10 @@ import { createTheme } from '@mui/material/styles';
 import { PALETTES, DEFAULT_THEME } from './themeConfig';
 
 // Helper to generate CSS variables for the active theme
-export const getThemedCssVariables = (paletteKey) => {
-    const config = PALETTES[paletteKey] || PALETTES[DEFAULT_THEME];
+export const getThemedCssVariables = (paletteKey, customPalette = null) => {
+    const config = (paletteKey === 'custom' && customPalette) 
+        ? customPalette 
+        : (PALETTES[paletteKey] || PALETTES[DEFAULT_THEME]);
     
     // We map the semantic tokens to the CSS variables used in App.css
     return {
@@ -12,24 +14,20 @@ export const getThemedCssVariables = (paletteKey) => {
         '--accent': config.accent,
         '--primary': config.primary, 
         '--secondary': config.secondary,
-        '--text-light': config.mode === 'dark' ? config.text.primary : config.background, // In dark mode, text is light. In light mode, "text-light" variable might be confusing but usually refers to the main text color or contrast color. 
-        // Let's look at App.css: --text-light is used as color: var(--text-light); on body.
-        // So it should be the main text color.
-        '--text-main': config.text.primary, // New standard variable
-        '--text-sub': config.text.secondary, // New standard variable
+        '--text-light': config.mode === 'dark' ? config.text.primary : config.background, 
+        '--text-main': config.text.primary, 
+        '--text-sub': config.text.secondary, 
         
         // Fix for legacy App.css usage:
         '--text-light': config.text.primary, 
         '--text-dark': config.text.secondary,
 
         // Gradients (auto-generated based on primary/secondary)
-        // For new palettes (7+) AND Midnight Teal (palette4), user requested NO gradients.
-        // We check if it's palette4 OR palette index >= 7.
-        '--primary-gradient': (paletteKey === 'palette4' || parseInt(paletteKey.replace('palette', '')) >= 7) 
+        '--primary-gradient': (paletteKey === 'palette4' || (paletteKey.startsWith('palette') && parseInt(paletteKey.replace('palette', '')) >= 7)) 
             ? config.primary 
             : `linear-gradient(135deg, ${config.primary} 0%, ${config.secondary} 100%)`,
             
-        '--secondary-gradient': (paletteKey === 'palette4' || parseInt(paletteKey.replace('palette', '')) >= 7)
+        '--secondary-gradient': (paletteKey === 'palette4' || (paletteKey.startsWith('palette') && parseInt(paletteKey.replace('palette', '')) >= 7))
             ? config.secondary
             : `linear-gradient(135deg, ${config.secondary} 0%, ${config.accent} 100%)`,
         
@@ -48,8 +46,10 @@ const hexToRgb = (hex) => {
     return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '255, 255, 255';
 };
 
-export const getDesignTokens = (paletteKey) => {
-    const config = PALETTES[paletteKey] || PALETTES[DEFAULT_THEME];
+export const getDesignTokens = (paletteKey, customPalette = null) => {
+    const config = (paletteKey === 'custom' && customPalette)
+        ? customPalette
+        : (PALETTES[paletteKey] || PALETTES[DEFAULT_THEME]);
     const { mode, primary, secondary, accent, background, surface, text } = config;
 
     return {

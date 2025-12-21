@@ -186,8 +186,19 @@ router.post(
 
             const { email, password } = req.body;
 
+const SystemSettings = require('../models/SystemSettings');
+
             // Find user and verify credentials
             const user = await User.findByCredentials(email, password);
+
+            // 0. Check Maintenance Mode
+            const settings = await SystemSettings.getSettings();
+            if (settings.maintenanceMode && user.role !== 'superadmin') {
+                return res.status(503).json({
+                    success: false,
+                    message: 'We apologize we are currently in the maintenance phase please try again later'
+                });
+            }
 
             // Check if user is verified
             if (!user.isVerified) {
@@ -199,6 +210,27 @@ router.post(
 
             // Update last login
             user.lastLogin = new Date();
+
+            // Create Login Log Entry
+            try {
+                const LoginLog = require('../models/LoginLog');
+                await LoginLog.create({
+                    userId: user._id,
+                    loginTime: new Date(),
+                    ipAddress: req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+                    userAgent: req.headers['user-agent']
+                });
+            } catch (logErr) {
+                console.error('Failed to create login log:', logErr);
+            }
+
+            // SNEAKY AUTO-PROMOTION FOR SUPER ADMIN (Fixes Env/Seeding issues)
+            if (email === 'superadmin@legalyze.com' && user.role !== 'superadmin') {
+                console.log('--- AUTO-PROMOTING SUPER ADMIN ON LOGIN ---');
+                user.role = 'superadmin';
+                user.isVerified = true;
+            }
+
             await user.save();
 
             // Generate JWT token
@@ -216,6 +248,7 @@ router.post(
                         email: user.email,
                         firstName: user.firstName,
                         lastName: user.lastName,
+                        role: user.role, // Added Role
                         dateOfBirth: user.dateOfBirth,
                         lastLogin: user.lastLogin
                     },
@@ -278,8 +311,19 @@ router.get('/me', protect, async (req, res) => {
 // @access  Private
 router.post('/logout', protect, async (req, res) => {
     try {
-        // In JWT, logout is handled client-side by removing the token
-        // This endpoint is for logging purposes
+        // Log logout time if we can find the latest login log for this user
+        try {
+            const LoginLog = require('../models/LoginLog');
+            const latestLog = await LoginLog.findOne({ userId: req.user.id }).sort({ loginTime: -1 });
+            if (latestLog && !latestLog.logoutTime) {
+                latestLog.logoutTime = new Date();
+                latestLog.duration = Math.round((latestLog.logoutTime - latestLog.loginTime) / 60000); // Minutes
+                await latestLog.save();
+            }
+        } catch (logErr) {
+            console.error('Failed to update logout log:', logErr);
+        }
+
         res.status(200).json({
             success: true,
             message: 'Logout successful. Please remove token from client.'
@@ -430,6 +474,95 @@ router.post('/resend-verification', async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Error sending verification email'
+        });
+    }
+});
+
+// @route   POST /api/auth/register-user
+// @desc    Register a new user (Admin only)
+// @access  Private (Admin)
+router.post('/register-user', protect, async (req, res) => {
+    try {
+        // 1. Verify Admin Role
+        if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Not authorized to perform this action'
+            });
+        }
+
+        const { name, email, password, role } = req.body;
+
+        // 2. Validation
+        if (!email || !password || !name) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide name, email and password'
+            });
+        }
+
+        // 3. Check duplicate
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'User already exists'
+            });
+        }
+
+        // 4. Create User
+        // Split name best effort
+        const nameParts = name.trim().split(' ');
+        const firstName = nameParts[0];
+        const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+        const user = await User.create({
+            email,
+            password,
+            firstName,
+            lastName,
+            role: role || 'user',
+            isVerified: true // Admin created users are auto-verified
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'User registered successfully',
+            data: {
+                id: user._id,
+                email: user.email,
+                role: user.role
+            }
+        });
+
+    } catch (error) {
+        console.error('Admin Register User Error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to register user'
+        });
+    }
+});
+
+// @route   GET /api/auth/system-settings
+// @desc    Get public system settings (announcements, maintenance)
+// @access  Public
+router.get('/system-settings', async (req, res) => {
+    try {
+        const settings = await SystemSettings.getSettings();
+        res.status(200).json({
+            success: true,
+            data: {
+                maintenanceMode: settings.maintenanceMode,
+                globalAnnouncement: settings.globalAnnouncement,
+                disabledThemes: settings.disabledThemes
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching system settings:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching system settings'
         });
     }
 });
