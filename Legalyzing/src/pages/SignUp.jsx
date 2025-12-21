@@ -146,9 +146,11 @@ const SignUp = () => {
     };
 
     const handleSocialSignUp = (provider) => {
-        // Mock social signup
-        console.log(`Signing up with ${provider}`);
-        navigate('/chat');
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        if (provider === 'Google') {
+            // Redirect to backend Google OAuth endpoint
+            window.location.href = `${API_BASE}/api/auth/google`;
+        }
     };
 
     return (

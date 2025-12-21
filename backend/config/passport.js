@@ -23,7 +23,7 @@ passport.use(
         {
             clientID: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            callbackURL: '/api/auth/google/callback',
+            callbackURL: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/google/callback`,
             proxy: true
         },
         async (accessToken, refreshToken, profile, done) => {
@@ -42,14 +42,15 @@ passport.use(
                 }
 
                 // Create new user
+                const [firstName, ...lastNameParts] = profile.displayName.split(' ');
                 user = await User.create({
                     googleId: profile.id,
-                    name: profile.displayName,
+                    firstName: firstName || 'User',
+                    lastName: lastNameParts.join(' ') || 'Google',
                     email: profile.emails[0].value,
                     profilePicture: profile.photos[0]?.value,
-                    password: Math.random().toString(36).slice(-8), // Random password for Google users
-                    isEmailVerified: true,  // Google emails are verified
-                    emailVerified: true
+                    password: Math.random().toString(36).slice(-8) + 'A1!', // Random strong password for Google users
+                    isVerified: true  // Google emails are verified
                 });
 
                 done(null, user);

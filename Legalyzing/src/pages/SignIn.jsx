@@ -114,9 +114,10 @@ const SignIn = () => {
     };
 
     const handleSocialSignIn = (provider) => {
+        const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
         if (provider === 'Google') {
-            // Redirect to Google OAuth (localhost)
-            window.location.href = 'http://localhost:5000/api/auth/google';
+            // Redirect to Google OAuth
+            window.location.href = `${API_BASE}/api/auth/google`;
         } else {
             // Other social logins not yet implemented
             setApiError(`${provider} sign-in is coming soon. Please use email/password or Google for now.`);
