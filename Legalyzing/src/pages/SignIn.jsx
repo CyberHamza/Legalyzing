@@ -106,7 +106,7 @@ const SignIn = () => {
             if (result.success) {
                 // If user is admin/superadmin, redirect to admin dashboard
                 if (result.user.role === 'admin' || result.user.role === 'superadmin') {
-                    navigate('/admin/dashboard');
+                    navigate('/admin/analytics');
                 } else {
                     navigate('/chat');
                 }

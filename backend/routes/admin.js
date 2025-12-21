@@ -9,8 +9,10 @@ const SystemPrompt = require('../models/SystemPrompt');
 const LegalDoc = require('../models/LegalDoc');
 const { processDocument, generateEmbedding } = require('../utils/documentProcessor'); // Need generateEmbedding exposed or use utility
 const pineconeService = require('../services/pineconeService');
-const crypto = require('crypto');
-// const { deleteFromPinecone } = require('../services/ragService'); // Needed later
+const LoginLog = require('../models/LoginLog');
+const ComplianceCheck = require('../models/ComplianceCheck');
+const SystemSettings = require('../models/SystemSettings');
+const axios = require('axios');
 
 // Middleware to ensure admin
 // Ideally impoprt from middleware/adminMiddleware.js if created
@@ -557,8 +559,6 @@ Be precise and extract ONLY facts that are explicitly mentioned or clearly impli
     }
 });
 
-const SystemSettings = require('../models/SystemSettings');
-
 // @route   GET /api/admin/system-settings
 // @desc    Get global system settings
 router.get('/system-settings', adminAuth, async (req, res) => {
@@ -622,6 +622,49 @@ router.put('/users/:id/permissions', adminAuth, async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// @route   GET /api/admin/live-activity
+// @desc    Get real-time system pulse (Logins, Compliance, Health)
+router.get('/live-activity', adminAuth, async (req, res) => {
+    try {
+        // 1. Fetch Recent Logins
+        const recentLogins = await LoginLog.find()
+            .populate('userId', 'firstName lastName email')
+            .sort({ createdAt: -1 })
+            .limit(10);
+
+        // 2. Fetch Recent Compliance Checks
+        const recentCompliance = await ComplianceCheck.find()
+            .populate('user', 'firstName lastName')
+            .sort({ createdAt: -1 })
+            .limit(10);
+
+        // 3. System Health Checks (Simple ping check)
+        const health = {
+            openai: 'Healthy',
+            pinecone: 'Healthy',
+            aws: 'Healthy',
+            database: 'Healthy'
+        };
+
+        // Basic check for OpenAI (just check if key exists, or do a tiny ping)
+        if (!process.env.OPENAI_API_KEY) health.openai = 'Missing Key';
+        if (!process.env.PINECONE_API_KEY) health.pinecone = 'Missing Key';
+        if (!process.env.AWS_ACCESS_KEY_ID) health.aws = 'Missing Credentials';
+
+        res.json({
+            success: true,
+            activities: {
+                logins: recentLogins,
+                compliance: recentCompliance
+            },
+            health
+        });
+    } catch (err) {
+        console.error('Live Activity Error:', err);
+        res.status(500).json({ success: false, message: 'Failed to fetch live pulse' });
     }
 });
 

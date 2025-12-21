@@ -26,6 +26,8 @@ import KnowledgeBase from './pages/admin/KnowledgeBase';
 import UserManagement from './pages/admin/UserManagement';
 import PromptEngineering from './pages/admin/PromptEngineering';
 import Analytics from './pages/admin/Analytics';
+import LiveControlCenter from './pages/admin/LiveControlCenter';
+import SystemInformation from './pages/admin/SystemInformation';
 import Reports from './pages/admin/Reports';
 import Settings from './pages/admin/Settings';
 
@@ -108,12 +110,13 @@ function App() {
               
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminLayout />}>
-                <Route index element={<Navigate to="/admin/dashboard" replace />} />
-                <Route path="dashboard" element={<Analytics />} />
+                <Route index element={<Navigate to="/admin/analytics" replace />} />
+                <Route path="dashboard" element={<Navigate to="/admin/analytics" replace />} />
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="live-control" element={<LiveControlCenter />} />
+                <Route path="system-info" element={<SystemInformation />} />
                 <Route path="knowledge-base" element={<KnowledgeBase />} />
                 <Route path="users" element={<UserManagement />} />
-                <Route path="prompts" element={<PromptEngineering />} />
-                <Route path="analytics" element={<Analytics />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="settings" element={<Settings />} />
               </Route>

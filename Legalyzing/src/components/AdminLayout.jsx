@@ -9,8 +9,13 @@ import {
     Analytics as AnalyticsIcon,
     ExitToApp as LogoutIcon,
     Menu as MenuIcon,
-    Assessment
+    Assessment,
+    Dns,
+    Timeline as PulseIcon,
+    MenuBook as BookIcon
 } from '@mui/icons-material';
+
+
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useColorMode } from '../context/ThemeContext'; // Updated import
@@ -26,11 +31,11 @@ const AdminLayout = () => {
     const [mobileOpen, setMobileOpen] = useState(false);
 
     const menuItems = [
-        { text: 'Intelligence Hub', icon: <DashboardIcon />, path: '/admin/dashboard' },
+        { text: 'System Analytics', icon: <AnalyticsIcon />, path: '/admin/analytics' },
+        { text: 'Live Control Center', icon: <Assessment />, path: '/admin/live-control' },
+        { text: 'System Information', icon: <BookIcon />, path: '/admin/system-info' },
         { text: 'Knowledge Base (RAG)', icon: <StorageIcon />, path: '/admin/knowledge-base' },
         { text: 'User Management', icon: <PeopleIcon />, path: '/admin/users' },
-        { text: 'Prompt Engineering', icon: <DescriptionIcon />, path: '/admin/prompts' },
-        // Analytics merged into Intelligence Hub
         { text: 'System Reports', icon: <Assessment />, path: '/admin/reports' },
         { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
     ];

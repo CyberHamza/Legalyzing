@@ -56,7 +56,10 @@ import {
     Mail,
     Place,
     Person as PersonIcon,
-    ColorLens
+    ColorLens,
+    AutoFixHigh,
+    VerifiedUser,
+    EditNote
 } from '@mui/icons-material';
 import { PALETTES } from '../styles/themeConfig';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -202,19 +205,19 @@ const LandingPage = () => {
     // Data
     const services = [
         {
-            icon: <Description sx={{ fontSize: 48 }} />,
+            icon: <EditNote sx={{ fontSize: 32 }} />,
             title: 'AI Document Generation',
-            description: 'Generate professional legal documents using advanced AI and LLM technology with perfect formatting.'
+            description: 'Generate professional legal documents using advanced AI and LLM technology with perfect formatting and legal accuracy.'
         },
         {
-            icon: <Security sx={{ fontSize: 48 }} />,
-            title: 'Compliance Checking',
-            description: 'Automated compliance verification ensures your documents meet all regulatory standards.'
+            icon: <VerifiedUser sx={{ fontSize: 32 }} />,
+            title: 'Compliance Checkup',
+            description: 'Automated constitutional compliance verification ensures your documents meet all regulatory standards of Pakistan.'
         },
         {
-            icon: <CloudUpload sx={{ fontSize: 48 }} />,
-            title: 'Secure Cloud Storage',
-            description: 'AWS S3-based secure storage with AES-256 encryption and role-based access control.'
+            icon: <AutoFixHigh sx={{ fontSize: 32 }} />,
+            title: 'Case Buildup Wizard',
+            description: 'Interactive step-by-step assistance for building comprehensive case files and petitions with precision.'
         }
     ];
 
@@ -249,16 +252,16 @@ const LandingPage = () => {
             bio: 'Expert in AI/ML systems and legal tech innovation'
         },
         {
+            name: 'Ali Hamza',
+            role: 'Technical Lead',
+            title: 'Cloud Engineer',
+            bio: 'Architecting scalable cloud infrastructure and secure deployments'
+        },
+        {
             name: 'Maaz Bin Ramzan',
             role: 'Chief Technology Officer',
             title: 'Backend Developer',
             bio: 'Specializes in FastAPI and cloud infrastructure'
-        },
-        {
-            name: 'Nouman Ali',
-            role: 'Chief Product Officer',
-            title: 'Full Stack Developer',
-            bio: 'Expert in React and system integration'
         },
         {
             name: 'Osama Imtiaz',
@@ -267,10 +270,10 @@ const LandingPage = () => {
             bio: 'Focuses on LLM integration and RAG systems'
         },
         {
-            name: 'Ali Hamza',
-            role: 'Technical Lead',
-            title: 'Cloud Engineer',
-            bio: 'Architecting scalable cloud infrastructure and secure deployments'
+            name: 'Nouman Ali',
+            role: 'Chief Product Officer',
+            title: 'Full Stack Developer',
+            bio: 'Expert in React and system integration'
         }
     ];
 
@@ -495,8 +498,8 @@ const LandingPage = () => {
                         </Grid>
                         <Grid item xs={12} md={6}>
                             <motion.div initial="hidden" animate="visible" variants={slideInFromRight}>
-                                <Card className="glass" sx={{ p: 4, bgcolor: 'background.paper' }}>
-                                    <Description sx={{ fontSize: 120, color: 'primary.main', mb: 2 }} />
+                                <Card className="glass" sx={{ p: 4, bgcolor: 'background.paper', textAlign: 'center' }}>
+                                    <Description sx={{ fontSize: 80, color: 'primary.main', mb: 2 }} />
                                     <Typography variant="h4" gutterBottom fontWeight={700}>5+ Document Templates</Typography>
                                     <Typography color="text.secondary">From NDAs to Employment Contracts, generate professional legal documents in seconds</Typography>
                                 </Card>
@@ -597,16 +600,31 @@ const LandingPage = () => {
 
                     <Grid container spacing={4}>
                         {services.map((service, index) => (
-                            <Grid item xs={12} md={4} key={index}>
+                            <Grid item xs={12} key={index}>
                                 <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={slideInFromBottom} transition={{ delay: index * 0.2 }}>
-                                    <Card className="glass hover-lift" sx={{ height: '100%', p: 3, bgcolor: 'background.paper' }}>
-                                        <Box sx={{ color: 'primary.main', mb: 2, display: 'flex', justifyContent: 'center' }}>
+                                    <Card className="glass hover-lift" sx={{ 
+                                        p: 4, 
+                                        bgcolor: 'background.paper',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 4
+                                    }}>
+                                        <Box sx={{ 
+                                            color: 'primary.main', 
+                                            display: 'flex', 
+                                            justifyContent: 'center',
+                                            bgcolor: 'action.hover',
+                                            p: 3,
+                                            borderRadius: 4
+                                        }}>
                                             {service.icon}
                                         </Box>
-                                        <Typography variant="h5" gutterBottom fontWeight={600} align="center">
-                                            {service.title}
-                                        </Typography>
-                                        <Typography color="text.secondary" align="center">{service.description}</Typography>
+                                        <Box>
+                                            <Typography variant="h5" gutterBottom fontWeight={700}>
+                                                {service.title}
+                                            </Typography>
+                                            <Typography color="text.secondary" variant="body1">{service.description}</Typography>
+                                        </Box>
                                     </Card>
                                 </motion.div>
                             </Grid>
@@ -625,51 +643,64 @@ const LandingPage = () => {
                         Bringing together legal expertise and technological innovation
                     </Typography>
 
-                    <Grid container spacing={4}>
+                    <Box sx={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: { 
+                            xs: '1fr', 
+                            sm: 'repeat(2, 1fr)', 
+                            md: 'repeat(5, 1fr)' 
+                        }, 
+                        gap: 3 
+                    }}>
                         {teamMembers.map((member, index) => (
-                            <Grid item xs={12} sm={6} md={3} key={index}>
-                                <motion.div initial="hidden" whileInView="visible" viewport={{ once: true }} variants={slideInFromBottom} transition={{ delay: index * 0.1 }}>
-                                    <Card className="glass hover-lift" sx={{ 
-                                        height: '100%', 
-                                        overflow: 'hidden',
-                                        bgcolor: 'background.paper',
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
-                                            transform: 'translateY(-8px)',
-                                            boxShadow: '0 12px 40px rgba(0,0,0,0.1)'
-                                        }
+                            <motion.div 
+                                key={index}
+                                initial="hidden" 
+                                whileInView="visible" 
+                                viewport={{ once: true }} 
+                                variants={slideInFromBottom} 
+                                transition={{ delay: index * 0.1 }}
+                            >
+                                <Card className="glass hover-lift" sx={{ 
+                                    height: '100%', 
+                                    overflow: 'hidden',
+                                    bgcolor: 'background.paper',
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                        transform: 'translateY(-8px)',
+                                        boxShadow: '0 12px 40px rgba(0,0,0,0.1)'
+                                    }
+                                }}>
+                                    <Box sx={{ 
+                                        height: 200, 
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        bgcolor: 'action.hover'
                                     }}>
-                                        <Box sx={{ 
-                                            height: 280, 
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            bgcolor: 'action.hover'
-                                        }}>
-                                            <PersonIcon sx={{ fontSize: 96, color: 'primary.main' }} />
+                                        <PersonIcon sx={{ fontSize: 64, color: 'primary.main' }} />
+                                    </Box>
+                                    <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                                        <Typography variant="subtitle1" fontWeight={700} gutterBottom sx={{ fontSize: '0.9rem' }}>{member.name}</Typography>
+                                        <Typography variant="caption" className="gradient-text" fontWeight={600} display="block" sx={{ mb: 0.5 }}>
+                                            {member.role}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5, fontSize: '0.7rem' }}>
+                                            {member.title}
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                                            <IconButton size="small" sx={{ p: 0.5, bgcolor: 'action.hover', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
+                                                <LinkedIn sx={{ fontSize: 16 }} />
+                                            </IconButton>
+                                            <IconButton size="small" sx={{ p: 0.5, bgcolor: 'action.hover', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
+                                                <Email sx={{ fontSize: 16 }} />
+                                            </IconButton>
                                         </Box>
-                                        <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                                            <Typography variant="h6" fontWeight={700} gutterBottom>{member.name}</Typography>
-                                            <Typography variant="body2" className="gradient-text" fontWeight={600} gutterBottom>
-                                                {member.role}
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-                                                {member.title}
-                                            </Typography>
-                                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                                                <IconButton size="small" sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
-                                                    <LinkedIn fontSize="small" />
-                                                </IconButton>
-                                                <IconButton size="small" sx={{ bgcolor: 'action.hover', '&:hover': { bgcolor: 'primary.main', color: 'white' } }}>
-                                                    <Email fontSize="small" />
-                                                </IconButton>
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                </motion.div>
-                            </Grid>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
                         ))}
-                    </Grid>
+                    </Box>
                 </Container>
             </Box>
 

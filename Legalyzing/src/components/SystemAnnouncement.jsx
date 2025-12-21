@@ -1,47 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, IconButton, Collapse, Paper, useTheme } from '@mui/material';
-import { Close, InfoOutlined, WarningAmber, ErrorOutline, Campaign } from '@mui/icons-material';
+import { 
+    Box, Typography, IconButton, Paper, useTheme, 
+    Dialog, DialogContent, Button, Zoom, Fade
+} from '@mui/material';
+import { Close, Campaign, NotificationsActive, Info } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const SystemAnnouncement = () => {
     const [announcement, setAnnouncement] = useState(null);
-    const [visible, setVisible] = useState(false);
+    const [open, setOpen] = useState(false);
     const { user } = useAuth();
     const theme = useTheme();
 
     useEffect(() => {
+        // Only fetch if user is logged in
+        if (!user) {
+            setOpen(false);
+            return;
+        }
+
         const fetchSettings = async () => {
             try {
-                // Use absolute URL or relative if proxy setup
-                const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
-                console.log('Fetching system settings from:', API_BASE);
+                const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api';
                 const response = await axios.get(`${API_BASE}/auth/system-settings`);
-                console.log('System settings response:', response.data);
                 
                 if (response.data.success) {
                     const { globalAnnouncement } = response.data.data;
-                    console.log('Global Announcement Data:', globalAnnouncement);
-                    console.log('Current User Role:', user?.role);
                     
-                    // Check if announcement is active
                     if (globalAnnouncement && globalAnnouncement.isActive) {
-                        // Don't show to superadmin if requested (User said "except suepr admin")
-                        if (user?.role === 'superadmin') {
-                            console.log('Skipping announcement for superadmin');
-                            return;
-                        }
+                        // Skip for superadmin per requirement
+                        if (user?.role === 'superadmin') return;
 
                         setAnnouncement(globalAnnouncement);
-                        // Check session storage to see if already dismissed this session
-                        const dismissed = sessionStorage.getItem(`announcement-dismissed-${globalAnnouncement.message}`);
-                        console.log('Is dismissed?', dismissed);
-                        if (!dismissed) {
-                            setVisible(true);
-                        }
-                    } else {
-                        console.log('Announcement is not active or null');
+                        
+                        // User said: "always must be keep on popping everytime user logs in"
+                        // So we remove the sessionStorage check and just show it
+                        setTimeout(() => setOpen(true), 1200);
                     }
                 }
             } catch (error) {
@@ -53,143 +48,102 @@ const SystemAnnouncement = () => {
     }, [user]);
 
     const handleClose = () => {
-        setVisible(false);
-        if (announcement) {
-            sessionStorage.setItem(`announcement-dismissed-${announcement.message}`, 'true');
-        }
+        setOpen(false);
     };
 
-    if (!announcement || !visible) return null;
-
-    const getIcon = () => {
-        switch (announcement.type) {
-            case 'warning': return <WarningAmber />;
-            case 'error': return <ErrorOutline />;
-            default: return <Campaign />;
-        }
-    };
-
-    const getColors = () => {
-        const isDark = theme.palette.mode === 'dark';
-        switch (announcement.type) {
-            case 'warning':
-                return {
-                    bg: isDark ? 'rgba(237, 108, 2, 0.15)' : '#fff4e5',
-                    border: isDark ? '#ed6c02' : '#ff9800',
-                    text: isDark ? '#ffcc80' : '#663c00'
-                };
-            case 'error':
-                return {
-                    bg: isDark ? 'rgba(211, 47, 47, 0.15)' : '#fdeded',
-                    border: isDark ? '#d32f2f' : '#f44336',
-                    text: isDark ? '#ffcdd2' : '#5f2120'
-                };
-            default: // info/blue
-                return {
-                    bg: isDark ? 'rgba(2, 136, 209, 0.15)' : '#e3f2fd',
-                    border: isDark ? '#0288d1' : '#2196f3',
-                    text: isDark ? '#b3e5fc' : '#0d47a1'
-                };
-        }
-    };
-
-    const colors = getColors();
+    if (!announcement || !user) return null;
 
     return (
-        <AnimatePresence>
-            {visible && (
-                <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
+        <Dialog
+            open={open}
+            onClose={handleClose}
+            TransitionComponent={Zoom}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    background: theme.palette.mode === 'dark' ? '#1a1a1a' : '#ffffff',
+                    border: `1px solid ${theme.palette.divider}`,
+                    boxShadow: '0 24px 48px rgba(0,0,0,0.2)'
+                }
+            }}
+        >
+            <Box sx={{ position: 'relative' }}>
+                {/* Header Decoration */}
+                <Box sx={{ 
+                    height: 8, 
+                    width: '100%', 
+                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
+                }} />
+                
+                <IconButton
+                    onClick={handleClose}
+                    sx={{
+                        position: 'absolute',
+                        right: 12,
+                        top: 16,
+                        color: theme.palette.text.secondary,
+                        '&:hover': { background: 'rgba(0,0,0,0.05)' }
+                    }}
                 >
-                    <Box sx={{ width: '100%', px: 0 }}>
-                        <Paper
-                            elevation={0}
-                            square
-                            sx={{
-                                background: `linear-gradient(90deg, ${colors.bg} 0%, ${theme.palette.background.paper} 100%)`,
-                                borderBottom: `1px solid ${colors.border}`,
-                                borderLeft: `4px solid ${colors.border}`,
-                                py: 1.5,
-                                px: 3,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                position: 'relative',
-                                overflow: 'hidden'
-                            }}
-                        >
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, zIndex: 1, flex: 1 }}>
-                                <Box
-                                    sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: colors.border,
-                                        p: 1,
-                                        borderRadius: '50%',
-                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.5)'
-                                    }}
-                                >
-                                    {getIcon()}
-                                </Box>
-                                <Box>
-                                    <Typography 
-                                        variant="subtitle2" 
-                                        sx={{ 
-                                            fontWeight: 700, 
-                                            color: colors.border,
-                                            textTransform: 'uppercase',
-                                            fontSize: '0.75rem',
-                                            letterSpacing: '0.5px'
-                                        }}
-                                    >
-                                        System Announcement
-                                    </Typography>
-                                    <Typography 
-                                        variant="body2" 
-                                        sx={{ 
-                                            color: theme.palette.text.primary,
-                                            fontWeight: 500
-                                        }}
-                                    >
-                                        {announcement.message}
-                                    </Typography>
-                                </Box>
-                            </Box>
+                    <Close fontSize="small" />
+                </IconButton>
 
-                            <IconButton 
-                                size="small" 
-                                onClick={handleClose}
-                                sx={{ 
-                                    color: theme.palette.text.secondary,
-                                    '&:hover': { bgcolor: 'rgba(0,0,0,0.05)' }
-                                }}
-                            >
-                                <Close fontSize="small" />
-                            </IconButton>
-
-                            {/* Decorative Blur */}
-                            <Box
-                                sx={{
-                                    position: 'absolute',
-                                    right: -20,
-                                    top: -20,
-                                    width: 100,
-                                    height: 100,
-                                    bgcolor: colors.border,
-                                    opacity: 0.1,
-                                    borderRadius: '50%',
-                                    pointerEvents: 'none'
-                                }}
-                            />
-                        </Paper>
+                <DialogContent sx={{ p: 5, textAlign: 'center' }}>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        mb: 3 
+                    }}>
+                        <Box sx={{ 
+                            p: 2, 
+                            borderRadius: '50%', 
+                            bgcolor: `${theme.palette.primary.main}15`,
+                            color: theme.palette.primary.main,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                        }}>
+                            <NotificationsActive sx={{ fontSize: 48 }} />
+                        </Box>
                     </Box>
-                </motion.div>
-            )}
-        </AnimatePresence>
+
+                    <Typography variant="h5" fontWeight="800" gutterBottom sx={{ color: theme.palette.text.primary }}>
+                        System Announcement
+                    </Typography>
+                    
+                    <Typography 
+                        variant="body1" 
+                        sx={{ 
+                            color: theme.palette.text.secondary, 
+                            lineHeight: 1.6,
+                            mb: 4,
+                            px: 2
+                        }}
+                    >
+                        {announcement.message}
+                    </Typography>
+
+                    <Button
+                        variant="contained"
+                        fullWidth
+                        onClick={handleClose}
+                        sx={{
+                            py: 1.5,
+                            borderRadius: 2,
+                            fontWeight: 'bold',
+                            boxShadow: `0 8px 16px ${theme.palette.primary.main}44`,
+                            textTransform: 'none',
+                            fontSize: '1rem'
+                        }}
+                    >
+                        Acknowledge & Continue
+                    </Button>
+                </DialogContent>
+            </Box>
+        </Dialog>
     );
 };
 

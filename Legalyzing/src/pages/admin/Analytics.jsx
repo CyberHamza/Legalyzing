@@ -120,7 +120,7 @@ const Analytics = () => {
                         WebkitTextFillColor: 'transparent', 
                         mt: 1
                     }}>
-                         Intelligence Hub
+                         System Analytics
                     </Typography>
                     <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: 600 }}>
                         Real-time command center for monitoring user engagement, resource utilization, and knowledge base integrity.
@@ -166,16 +166,16 @@ const Analytics = () => {
             {/* Bento Grid Layout */}
             <Grid container spacing={3}>
                 {/* Top Row: Key Metrics */}
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={6}>
                     <StatCard title="Total Users" value={stats?.overview?.users?.total || 0} icon={<Group />} color="#6366f1" delay={0} />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={6}>
                     <StatCard title="Compliance Checks" value={stats?.overview?.complianceCount || 0} icon={<TrendingUp />} color="#10b981" delay={0.1} />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={6}>
                     <StatCard title="Active Chats" value={stats?.overview?.totalChats || 0} icon={<ChatBubbleOutline />} color="#f59e0b" delay={0.2} />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={6}>
                     <StatCard title="Docs Indexed" value={stats?.overview?.knowledgeBase?.total || 0} icon={<Storage />} color="#ec4899" delay={0.3} />
                 </Grid>
 

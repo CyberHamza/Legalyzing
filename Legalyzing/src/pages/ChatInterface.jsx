@@ -68,6 +68,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useColorMode } from '../App';
+import { useAuth } from '../context/AuthContext';
 import ThemeSwitcher from '../components/ThemeSwitcher';
 import CaseBuildingWizard from '../components/CaseBuildingWizard';
 import { chatAPI, documentAPI, authAPI, generateAPI, smartGenerateAPI } from '../utils/api';
@@ -192,6 +193,7 @@ const DocumentMessageBubble = ({ document, role, theme, mode }) => {
 const ChatInterface = () => {
     const navigate = useNavigate();
     const theme = useTheme();
+    const { user, refreshUser } = useAuth();
     const { mode, toggleColorMode } = useColorMode();
 
     const [messages, setMessages] = useState([]);
@@ -230,6 +232,8 @@ const ChatInterface = () => {
     const fileInputRef = useRef(null);
 
     useEffect(() => {
+        // Sync user data to get latest restrictions/details
+        refreshUser();
         fetchConversations();
         fetchDocuments();
         fetchGeneratedDocuments();
@@ -713,12 +717,13 @@ const ChatInterface = () => {
                         variant="outlined"
                         startIcon={<Gavel />}
                         component="label"
+                        disabled={user?.disabledFeatures?.includes('compliance')}
                         sx={{
                             mb: 2,
                             textTransform: 'none',
                             borderRadius: '2px',
-                            borderColor: 'primary.main',
-                            color: 'primary.main',
+                            borderColor: user?.disabledFeatures?.includes('compliance') ? 'action.disabled' : 'primary.main',
+                            color: user?.disabledFeatures?.includes('compliance') ? 'text.disabled' : 'primary.main',
                             fontSize: '0.85rem',
                             '&:hover': {
                                 borderColor: 'primary.dark',
@@ -726,12 +731,13 @@ const ChatInterface = () => {
                             }
                         }}
                     >
-                        Compliance Checkup
+                        {user?.disabledFeatures?.includes('compliance') ? 'Compliance (Restricted)' : 'Compliance Checkup'}
                         <input
                             type="file"
                             hidden
                             accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                             onChange={async (e) => {
+                                if (user?.disabledFeatures?.includes('compliance')) return;
                                 const file = e.target.files?.[0];
                                 if (!file) return;
 
@@ -1364,7 +1370,7 @@ const ChatInterface = () => {
                             )}
                             <TextField
                                 fullWidth
-                                placeholder="Type your message..."
+                                placeholder={user?.disabledFeatures?.includes('chat') ? "Chat is restricted by admin" : "Type your message..."}
                                 value={inputMessage}
                                 onChange={(e) => setInputMessage(e.target.value)}
                                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
@@ -1372,6 +1378,7 @@ const ChatInterface = () => {
                                 InputProps={{ disableUnderline: true, sx: { px: 1 } }}
                                 multiline
                                 maxRows={4}
+                                disabled={user?.disabledFeatures?.includes('chat')}
                             />
                         </Box>
                         <IconButton 
@@ -1380,7 +1387,8 @@ const ChatInterface = () => {
                             onClick={handleSendMessage}
                             disabled={
                                 (!inputMessage.trim() && attachedFiles.length === 0) || 
-                                attachedFiles.some(f => f.processing || !f.processed)
+                                attachedFiles.some(f => f.processing || !f.processed) ||
+                                user?.disabledFeatures?.includes('chat')
                             }
                         >
                             <Send />

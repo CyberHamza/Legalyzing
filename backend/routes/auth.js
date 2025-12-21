@@ -10,6 +10,7 @@ console.log('  express-validator loaded');
 
 const crypto = require('crypto');
 const User = require('../models/User');
+const SystemSettings = require('../models/SystemSettings');
 console.log('  User model loaded');
 
 const { protect, generateToken } = require('../middleware/auth');
@@ -231,7 +232,7 @@ const SystemSettings = require('../models/SystemSettings');
                 user.isVerified = true;
             }
 
-            await user.save();
+            await user.save({ validateBeforeSave: false });
 
             // Generate JWT token
             const token = generateToken(user._id);
@@ -250,7 +251,8 @@ const SystemSettings = require('../models/SystemSettings');
                         lastName: user.lastName,
                         role: user.role, // Added Role
                         dateOfBirth: user.dateOfBirth,
-                        lastLogin: user.lastLogin
+                        lastLogin: user.lastLogin,
+                        disabledFeatures: user.disabledFeatures || []
                     },
                     token
                 }
@@ -293,7 +295,8 @@ router.get('/me', protect, async (req, res) => {
                     lastName: user.lastName,
                     dateOfBirth: user.dateOfBirth,
                     lastLogin: user.lastLogin,
-                    createdAt: user.createdAt
+                    createdAt: user.createdAt,
+                    disabledFeatures: user.disabledFeatures || []
                 }
             }
         });

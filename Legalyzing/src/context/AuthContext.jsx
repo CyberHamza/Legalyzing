@@ -163,6 +163,21 @@ export const AuthProvider = ({ children }) => {
         return !!token && !!user;
     };
 
+    // Refresh user data (sync restrictions, etc)
+    const refreshUser = async () => {
+        try {
+            const response = await authAPI.getCurrentUser();
+            if (response.success) {
+                setUser(response.user);
+                localStorage.setItem('user', JSON.stringify(response.user));
+                return { success: true };
+            }
+        } catch (err) {
+            console.error('Failed to refresh user:', err);
+            return { success: false };
+        }
+    };
+
     const value = {
         user,
         token,
@@ -174,7 +189,8 @@ export const AuthProvider = ({ children }) => {
         verifyEmail,
         resendVerification,
         isAuthenticated,
-        setError
+        setError,
+        refreshUser
     };
 
     return (
