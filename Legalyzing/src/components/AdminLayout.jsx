@@ -31,12 +31,12 @@ const AdminLayout = () => {
     const [mobileOpen, setMobileOpen] = useState(false);
 
     const menuItems = [
-        { text: 'System Analytics', icon: <AnalyticsIcon />, path: '/admin/analytics' },
-        { text: 'Live Control Center', icon: <Assessment />, path: '/admin/live-control' },
-        { text: 'System Information', icon: <BookIcon />, path: '/admin/system-info' },
-        { text: 'Knowledge Base (RAG)', icon: <StorageIcon />, path: '/admin/knowledge-base' },
+        { text: 'System Overview', icon: <AnalyticsIcon />, path: '/admin/analytics' },
         { text: 'User Management', icon: <PeopleIcon />, path: '/admin/users' },
+        { text: 'Knowledge Base (RAG)', icon: <StorageIcon />, path: '/admin/knowledge-base' },
+        { text: 'Live Control Center', icon: <Assessment />, path: '/admin/live-control' },
         { text: 'System Reports', icon: <Assessment />, path: '/admin/reports' },
+        { text: 'System Information', icon: <BookIcon />, path: '/admin/system-info' },
         { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
     ];
 
