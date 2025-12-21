@@ -23,8 +23,14 @@ export const getThemedCssVariables = (paletteKey) => {
         '--text-dark': config.text.secondary,
 
         // Gradients (auto-generated based on primary/secondary)
-        '--primary-gradient': `linear-gradient(135deg, ${config.primary} 0%, ${config.secondary} 100%)`,
-        '--secondary-gradient': `linear-gradient(135deg, ${config.secondary} 0%, ${config.accent} 100%)`,
+        // For new palettes (7+), user requested NO gradients, so we use solid colors.
+        '--primary-gradient': (parseInt(paletteKey.replace('palette', '')) >= 7) 
+            ? config.primary 
+            : `linear-gradient(135deg, ${config.primary} 0%, ${config.secondary} 100%)`,
+            
+        '--secondary-gradient': (parseInt(paletteKey.replace('palette', '')) >= 7)
+            ? config.secondary
+            : `linear-gradient(135deg, ${config.secondary} 0%, ${config.accent} 100%)`,
         
         // Glassmorphism
         '--glass-bg': config.mode === 'dark' 

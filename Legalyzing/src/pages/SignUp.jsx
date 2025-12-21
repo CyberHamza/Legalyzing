@@ -157,9 +157,7 @@ const SignUp = () => {
         <Box
             sx={{
                 minHeight: '100vh',
-                background: mode === 'dark' 
-                    ? 'linear-gradient(135deg, #222831 0%, #31363F 50%, #222831 100%)'
-                    : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%)',
+                background: theme.palette.background.default,
                 display: 'flex',
                 alignItems: 'center',
                 py: 4,
