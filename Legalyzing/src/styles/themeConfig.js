@@ -64,33 +64,82 @@ export const PALETTES = {
     }
   },
 
-  palette8: {
-    name: 'Burgundy Classic',
-    mode: 'dark',
-    colors: ['#761F21', '#C4C4C4', '#504141', '#2A1415'],
-    primary: '#761F21', // Burgundy
-    secondary: '#C4C4C4', // Light Gray
-    accent: '#504141', // Dark Brown
-    background: '#2A1415', // Very dark burgundy
-    surface: '#504141',
+
+
+  // Palette 13 removed per user request
+  
+  // palette8 removed
+
+  palette14: {
+    name: 'Azure Gold',
+    mode: 'light',
+    colors: ['#1A5F7A', '#DDBA7D', '#F4F9FC', '#FFFFFF'],
+    primary: '#1A5F7A', // Much Darker Blue (Requested)
+    secondary: '#DDBA7D', // Muted Gold
+    accent: '#154c61', // Darkest Blue
+    background: '#F4F9FC', 
+    surface: '#FFFFFF',
     text: {
-      primary: '#C4C4C4', // Light gray text
-      secondary: '#E0E0E0'
+      primary: '#0E2A35', // Very Dark Blue
+      secondary: '#1A5F7A'
+    }
+  },
+  palette15: {
+    name: 'Urban Minimal',
+    mode: 'light',
+    colors: ['#EFECE3', '#8FABD4', '#000000', '#1A1A1A'],
+    primary: '#8FABD4', // Periwinkle
+    secondary: '#000000', // Black
+    accent: '#1A1A1A', // Off-Black
+    background: '#EFECE3', // Bone/Off-white
+    surface: '#FFFFFF',
+    text: {
+      primary: '#000000', // Black
+      secondary: '#5F7C9D' // Muted Blue
     }
   },
 
-  palette13: {
-    name: 'Emerald Sand',
-    mode: 'dark',
-    colors: ['#896315', '#F2D6A9', '#CDB190', '#60A3A9', '#AC7C53', '#04344C'],
-    primary: '#F2D6A9', // Light Sand
-    secondary: '#60A3A9', // Teal
-    accent: '#AC7C53', // Terra Cotta
-    background: '#04344C', // Deep Teal Blue
-    surface: '#06405E',
+  palette17: {
+    name: 'Rustic Ocean',
+    mode: 'light',
+    colors: ['#EFE4D2', '#954C2E', '#254D70', '#F7F3EB'],
+    primary: '#254D70', // Deep Blue
+    secondary: '#954C2E', // Rust Red
+    accent: '#EFE4D2', // Cream
+    background: '#F7F3EB', // Warm Off-white
+    surface: '#FFFFFF',
     text: {
-      primary: '#F2D6A9', // Sand
-      secondary: '#CDB190'
+      primary: '#254D70', // Deep Blue text
+      secondary: '#954C2E'
+    }
+  },
+  palette18: {
+    name: 'Navy Cream',
+    mode: 'light',
+    colors: ['#F3F3E0', '#133E87', '#608BC1', '#CBDCEB'],
+    primary: '#133E87', // Navy Blue
+    secondary: '#608BC1', // Soft Blue
+    accent: '#CBDCEB', // Pale Blue
+    background: '#F3F3E0', // Cream White
+    surface: '#FFFFFF',
+    text: {
+      primary: '#133E87', // Navy Text
+      secondary: '#608BC1'
+    }
+  },
+
+  palette21: {
+    name: 'Taupe Steel',
+    mode: 'light',
+    colors: ['#948979', '#DFD0B8', '#3C5B6F', '#F5F5F0'],
+    primary: '#3C5B6F', // Steel Blue
+    secondary: '#948979', // Taupe
+    accent: '#DFD0B8', // Beige
+    background: '#F5F5F0', // Off White
+    surface: '#FFFFFF',
+    text: {
+      primary: '#3C5B6F', // Steel Text
+      secondary: '#948979'
     }
   }
 };

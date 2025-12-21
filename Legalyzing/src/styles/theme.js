@@ -23,12 +23,13 @@ export const getThemedCssVariables = (paletteKey) => {
         '--text-dark': config.text.secondary,
 
         // Gradients (auto-generated based on primary/secondary)
-        // For new palettes (7+), user requested NO gradients, so we use solid colors.
-        '--primary-gradient': (parseInt(paletteKey.replace('palette', '')) >= 7) 
+        // For new palettes (7+) AND Midnight Teal (palette4), user requested NO gradients.
+        // We check if it's palette4 OR palette index >= 7.
+        '--primary-gradient': (paletteKey === 'palette4' || parseInt(paletteKey.replace('palette', '')) >= 7) 
             ? config.primary 
             : `linear-gradient(135deg, ${config.primary} 0%, ${config.secondary} 100%)`,
             
-        '--secondary-gradient': (parseInt(paletteKey.replace('palette', '')) >= 7)
+        '--secondary-gradient': (paletteKey === 'palette4' || parseInt(paletteKey.replace('palette', '')) >= 7)
             ? config.secondary
             : `linear-gradient(135deg, ${config.secondary} 0%, ${config.accent} 100%)`,
         
@@ -99,6 +100,7 @@ export const getDesignTokens = (paletteKey) => {
                     },
                     containedPrimary: {
                         background: primary,
+                        color: '#FFFFFF', // Ensure white text for better visibility (User request for Midnight Teal)
                         '&:hover': {
                             background: secondary,
                         },

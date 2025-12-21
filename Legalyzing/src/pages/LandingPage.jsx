@@ -58,6 +58,7 @@ import {
     Person as PersonIcon,
     ColorLens
 } from '@mui/icons-material';
+import { PALETTES } from '../styles/themeConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fadeIn, slideInFromBottom, slideInFromLeft, slideInFromRight, staggerContainer } from '../utils/animations';
 import { scrollToSection } from '../utils/helpers';
@@ -87,10 +88,20 @@ const LandingPage = () => {
     const { mode, setTheme, allThemes } = useColorMode();
     
     // Cycle through themes on click
+    const [themeToast, setThemeToast] = useState(null);
+
+    // Cycle through themes on click
     const cycleTheme = () => {
         const currentIndex = allThemes.indexOf(mode);
         const nextIndex = (currentIndex + 1) % allThemes.length;
-        setTheme(allThemes[nextIndex]);
+        const newThemeKey = allThemes[nextIndex];
+        setTheme(newThemeKey);
+        
+        const themeName = PALETTES[newThemeKey]?.name || 'New Theme';
+        setThemeToast(themeName);
+        
+        // Auto hide after 2 seconds
+        setTimeout(() => setThemeToast(null), 2000);
     };
     const [formData, setFormData] = useState({
         name: '',
@@ -335,6 +346,40 @@ const LandingPage = () => {
 
     return (
         <Box className="page-container" sx={{ bgcolor: 'background.default', color: 'text.primary' }}>
+            {/* Theme Toast Notification */}
+            <AnimatePresence>
+                {themeToast && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -50, x: '-50%' }}
+                        animate={{ opacity: 1, y: 0, x: '-50%' }}
+                        exit={{ opacity: 0, y: -50, x: '-50%' }}
+                        transition={{ duration: 0.3 }}
+                        style={{
+                            position: 'fixed',
+                            top: 24,
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            zIndex: 9999,
+                            background: 'rgba(0, 0, 0, 0.8)',
+                            backdropFilter: 'blur(10px)',
+                            color: 'white',
+                            padding: '12px 32px',
+                            borderRadius: '50px',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            fontWeight: 600,
+                            fontSize: '1rem',
+                            border: '1px solid rgba(255,255,255,0.1)'
+                        }}
+                    >
+                        <ColorLens sx={{ fontSize: 20, color: 'var(--primary)' }} />
+                        {themeToast}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Navigation Bar */}
             <AppBar
                 position="sticky"
