@@ -13,7 +13,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { systemDocs } from '../../data/systemDocsData';
-import MermaidRenderer from '../../components/MermaidRenderer';
 
 const SystemInformation = () => {
     const theme = useTheme();
@@ -181,12 +180,6 @@ const SystemInformation = () => {
                                     <ReactMarkdown
                                         components={{
                                             code({ node, inline, className, children, ...props }) {
-                                                const match = /language-mermaid/.exec(className || '');
-                                                if (!inline && match) {
-                                                    return (
-                                                        <MermaidRenderer chart={String(children).replace(/\n$/, '')} />
-                                                    );
-                                                }
                                                 return (
                                                     <code className={className} {...props}>
                                                         {children}

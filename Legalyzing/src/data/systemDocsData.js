@@ -22,34 +22,8 @@ To modernize the legal practice in Pakistan by providing instant, accurate, and 
 ### 2.2 System Use Case Diagram
 Below is a high-level overview of the major user roles and their interactions with the system modules.
 
-\`\`\`mermaid
-useCaseDiagram
-    actor "Super Admin" as SA
-    actor "Admin" as A
-    actor "Legal Professional" as LP
-    
-    package "Portal Sections" {
-        usecase "Live Activity Monitoring" as UC1
-        usecase "System Documentation Bible" as UC2
-        usecase "User Permission Control" as UC3
-        usecase "Knowledge Base Management" as UC4
-        usecase "Intelligent Legal Chat (RAG)" as UC5
-        usecase "Constitutional Compliance" as UC6
-        usecase "Case Build-Up Wizard" as UC7
-    }
-    
-    SA --> UC1
-    SA --> UC2
-    SA --> UC3
-    SA --> UC4
-    
-    A --> UC3
-    A --> UC4
-    
-    LP --> UC5
-    LP --> UC6
-    LP --> UC7
-\`\`\`
+    /* Diagram removed */
+
 
 ### 2.5 Target Users
 - **Lawyers & Advocates**: For case preparation and research.
@@ -65,39 +39,8 @@ useCaseDiagram
 ### 4.1 Detailed System Architecture Diagram
 The system follows a MERN + RAG multi-tier architecture, integrating external AI and Cloud storage services.
 
-\`\`\`mermaid
-graph TD
-    subgraph "Client Layer (React)"
-        UI["User Interface (MUI + Framer)"]
-        State["State Management (Context API)"]
-    end
+    /* Diagram removed */
 
-    subgraph "API Layer (Node/Express)"
-        Router["Express Router"]
-        Auth["Auth Middleware (JWT/OAuth)"]
-        Controllers["Feature Controllers"]
-    end
-
-    subgraph "Data & Knowledge Layer"
-        DB[(MongoDB - Metadata)]
-        Pinecone[(Pinecone - Vector Store)]
-        S3["AWS S3 - Legal Document Store"]
-    end
-
-    subgraph "AI Core Layer"
-        OpenAI["OpenAI GPT-4o Engine"]
-        Embedding["Text-Embedding-3-Small"]
-    end
-
-    UI <--> Router
-    Router --> Auth
-    Auth --> Controllers
-    Controllers --> DB
-    Controllers --> OpenAI
-    Controllers --> Pinecone
-    Controllers --> S3
-    OpenAI <--> Embedding
-\`\`\`
 
 ### 4.2 Logical Architecture
 - **Presentation Layer**: React.js / Material UI.
@@ -113,23 +56,8 @@ graph TD
 ### 6.1 RAG Pipeline Sequence Diagram
 This interaction shows how the system "finds" legal truth using Retrieval-Augmented Generation.
 
-\`\`\`mermaid
-sequenceDiagram
-    participant U as User
-    participant B as Backend (API)
-    participant E as OpenAI (Embedding)
-    participant V as Pinecone (Vector DB)
-    participant L as OpenAI (GPT-4o)
+    /* Diagram removed */
 
-    U->>B: Sends Legal Query
-    B->>E: Convert Query to 1536-dim Vector
-    E-->>B: Return Numerical Embedding
-    B->>V: Search for Top-K Similar Law Segments
-    V-->>B: Return Relevant Legal Context
-    B->>L: Payload: [Context + Legal Query + Persona]
-    L-->>B: Generate Factually Grounded Answer
-    B->>U: Deliver AI Response with Citations
-\`\`\`
 
 ### 6.2 AI Design Philosophy
 "Grounded Intelligence." The AI is not allowed to speak from its own generic knowledge alone; it must cite the Knowledge Base.

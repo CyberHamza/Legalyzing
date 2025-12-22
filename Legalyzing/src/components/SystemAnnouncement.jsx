@@ -3,9 +3,9 @@ import {
     Box, Typography, IconButton, Paper, useTheme, 
     Dialog, DialogContent, Button, Zoom, Fade
 } from '@mui/material';
-import { Close, Campaign, NotificationsActive, Info } from '@mui/icons-material';
+import { Close, NotificationsActive } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios';
+import { authAPI } from '../utils/api';
 
 const SystemAnnouncement = () => {
     const [announcement, setAnnouncement] = useState(null);
@@ -17,26 +17,33 @@ const SystemAnnouncement = () => {
         // Only fetch if user is logged in
         if (!user) {
             setOpen(false);
+            setAnnouncement(null);
+            return;
+        }
+
+        // According to user: "superadmin make annoucnement the annoucenemnt must be shown for each suer eeach time the login 
+        // the annoucenement must not be shown to asuper admin but else all other users"
+        if (user?.role === 'superadmin') {
+            setOpen(false);
+            setAnnouncement(null);
             return;
         }
 
         const fetchSettings = async () => {
             try {
-                const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000/api';
-                const response = await axios.get(`${API_BASE}/auth/system-settings`);
+                // Using authAPI ensures headers and correct base URL are used
+                const response = await authAPI.getSystemSettings();
                 
-                if (response.data.success) {
-                    const { globalAnnouncement } = response.data.data;
+                if (response.success) {
+                    const { globalAnnouncement } = response.data;
                     
                     if (globalAnnouncement && globalAnnouncement.isActive) {
-                        // Skip for superadmin per requirement
-                        if (user?.role === 'superadmin') return;
-
                         setAnnouncement(globalAnnouncement);
                         
                         // User said: "always must be keep on popping everytime user logs in"
-                        // So we remove the sessionStorage check and just show it
-                        setTimeout(() => setOpen(true), 1200);
+                        // We reset open state and then show it with a pleasant delay
+                        setOpen(false); 
+                        setTimeout(() => setOpen(true), 1500);
                     }
                 }
             } catch (error) {

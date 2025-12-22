@@ -104,6 +104,12 @@ export const authAPI = {
     resendVerification: async (email) => {
         const response = await api.post('/auth/resend-verification', { email });
         return response.data;
+    },
+
+    // Get system settings (including announcements)
+    getSystemSettings: async () => {
+        const response = await api.get('/auth/system-settings');
+        return response.data;
     }
 };
 
