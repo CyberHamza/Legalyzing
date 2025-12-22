@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const crypto = require('crypto');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const s3Client = require('../config/s3');
 const { protect } = require('../middleware/auth');
@@ -67,21 +68,35 @@ const upload = multer({
 // @desc    Upload and Index Document
 router.post('/knowledge-base', adminAuth, upload.single('document'), async (req, res) => {
     try {
-        if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+        console.log('📂 RAG Upload Request Received');
+        if (!req.file) {
+            console.warn('❌ No file in request');
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        console.log(`📄 File: ${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes)`);
 
         // 1. Upload to S3
         const fileExtension = req.file.originalname.split('.').pop();
         const uniqueFilename = `admin/knowledge-base/${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${fileExtension}`;
         
-        await s3Client.send(new PutObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: uniqueFilename,
-            Body: req.file.buffer,
-            ContentType: req.file.mimetype,
-            Metadata: { originalName: req.file.originalname, type: 'knowledge-base' }
-        }));
+        console.log(`☁️ Uploading to S3: ${uniqueFilename}`);
+        try {
+            await s3Client.send(new PutObjectCommand({
+                Bucket: process.env.AWS_BUCKET_NAME,
+                Key: uniqueFilename,
+                Body: req.file.buffer,
+                ContentType: req.file.mimetype,
+                Metadata: { originalName: req.file.originalname, type: 'knowledge-base' }
+            }));
+            console.log('✅ S3 Upload Success');
+        } catch (s3Err) {
+            console.error('❌ S3 Upload Error:', s3Err);
+            throw new Error(`S3 fail: ${s3Err.message}`);
+        }
 
         // 2. Create DB Record
+        console.log('💾 Saving DB record...');
         const doc = new LegalDoc({
             title: req.file.originalname,
             fileName: uniqueFilename,
@@ -91,14 +106,20 @@ router.post('/knowledge-base', adminAuth, upload.single('document'), async (req,
             status: 'Indexing'
         });
         await doc.save();
+        console.log('✅ DB Record Saved');
 
         // 3. Process & Embed (Delegated to helper)
+        console.log('⚡ Starting background indexing...');
         processAndIndex(doc, req.file.buffer, req.file.mimetype, req.body.category || 'General');
 
         res.json(doc);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Upload failed', error: err.message });
+        console.error('🔥 CRITICAL UPLOAD ERROR:', err);
+        res.status(500).json({ 
+            message: 'Upload failed', 
+            error: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined 
+        });
     }
 });
 
