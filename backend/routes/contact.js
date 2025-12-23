@@ -11,54 +11,19 @@ const contactLimiter = rateLimit({
     message: 'Too many requests from this IP, please try again later.'
 });
 
-// Email validation utility
+// Email validation utility (relaxed but still safe)
 const validateEmail = (email) => {
-    // Strict email validation regex
-    const emailRegex = /^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]@[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-    
-    // Additional checks for spam patterns
-    const spamPatterns = [
-        /^[^@]+@[^@]+$/, // Must have exactly one @
-        /\.\./, // No consecutive dots
-        /@\./, // No @ followed by dot
-        /\.@/, // No dot followed by @
-        /^\./, // Cannot start with dot
-        /\.$/, // Cannot end with dot
-    ];
-    
-    // Check basic format
-    if (!emailRegex.test(email)) {
-        return false;
-    }
-    
-    // Check for spam patterns
-    for (const pattern of spamPatterns.slice(1)) {
-        if (pattern.test(email)) {
-            return false;
-        }
-    }
-    
-    // Check that @ appears exactly once
-    const atCount = (email.match(/@/g) || []).length;
-    if (atCount !== 1) {
-        return false;
-    }
-    
-    // Check domain has valid format
-    const [, domain] = email.split('@');
-    if (!domain || domain.length < 3) {
-        return false;
-    }
-    
-    // Check for known disposable/spam domains (basic list)
+    if (!email) return false;
+
+    // Basic pattern: something@something.domain
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return false;
+
+    // Lightweight spam-domain check on domain only
+    const domain = email.split('@')[1]?.toLowerCase() || '';
     const spamDomains = ['tempmail', 'throwaway', '10minutemail', 'guerrillamail', 'mailinator'];
-    const lowerDomain = domain.toLowerCase();
-    for (const spamDomain of spamDomains) {
-        if (lowerDomain.includes(spamDomain)) {
-            return false;
-        }
-    }
-    
+    if (spamDomains.some(spam => domain.includes(spam))) return false;
+
     return true;
 };
 
