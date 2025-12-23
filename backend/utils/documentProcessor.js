@@ -14,9 +14,19 @@ async function extractTextFromPDF(buffer) {
 
     try {
         const data = await pdf(buffer);
-        return data.text;
+        const text = data.text || '';
+        
+        if (!text || text.trim().length < 50) {
+            console.log(`⚠️ PDF text extraction returned only ${text.length} chars (likely scanned/image PDF)`);
+        } else {
+            console.log(`✅ PDF extracted ${text.length} characters`);
+        }
+        
+        return text;
     } catch (error) {
-        throw new Error(`PDF extraction failed: ${error.message}`);
+        console.error(`❌ pdf-parse failed: ${error.message}`);
+        // Return empty string instead of crashing - allows graceful fallback
+        return '';
     }
 }
 

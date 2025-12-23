@@ -45,8 +45,24 @@ class LegalAgentService {
 
         const retrievalResults = await Promise.all(retrievalTasks);
         
+        // DEBUG: Log all retrieval results
+        console.log('--- RETRIEVAL RESULTS DEBUG ---');
+        retrievalResults.forEach((res, idx) => {
+            console.log(`Result ${idx}: type=${res?.type}, dataCount=${res?.data?.length || 0}`);
+            if (res?.data?.length > 0) {
+                console.log(`  Sample: ${res.data[0]?.text?.substring(0, 100)}...`);
+            }
+        });
+        console.log('-------------------------------');
+        
         // 3. Context Synthesis
         const aggregatedContext = this.formatContext(retrievalResults, routing.tools);
+        
+        // DEBUG: Log the formatted context
+        console.log('--- FORMATTED CONTEXT DEBUG ---');
+        console.log(`Context length: ${aggregatedContext?.length || 0}`);
+        console.log(`Context preview: ${aggregatedContext?.substring(0, 500)}...`);
+        console.log('-------------------------------');
 
         // 4. Final Response Generation
         return await this.generateAgenticResponse(userQuery, aggregatedContext, routing, history, options);
@@ -113,17 +129,125 @@ RESPONSE FORMAT: JSON
         console.log(`ChatId: ${chatId}`);
         console.log('-----------------------------------');
         
-        const embedding = await generateEmbedding(query);
-        const results = await pineconeService.queryVectors(
-            embedding,
-            5,
-            userId,
-            documentIds,
-            chatId,
-            'user-uploads' // Explicitly query user namespace
-        );
+        let results = [];
         
-        console.log(`📄 Retrieved ${results.length} chunks from user documents`);
+        // Try Pinecone first, but gracefully handle failures
+        try {
+            const embedding = await generateEmbedding(query);
+            results = await pineconeService.queryVectors(
+                embedding,
+                5,
+                userId,
+                documentIds,
+                chatId,
+                'user-uploads'
+            );
+            console.log(`📄 Retrieved ${results.length} chunks from Pinecone`);
+        } catch (pineconeError) {
+            console.error(`⚠️ Pinecone query failed, falling back to MongoDB/S3: ${pineconeError.message}`);
+            // Continue with fallback - results stays empty
+        }
+        
+        // === FALLBACK: If Pinecone returns 0 chunks, read from MongoDB directly ===
+        if (results.length === 0 && documentIds && documentIds.length > 0) {
+            console.log('⚠️ Pinecone returned 0 chunks. Attempting MongoDB fallback...');
+            const Document = require('../models/Document');
+            
+            try {
+                // First try: Documents with extractedText already available
+                const docs = await Document.find({ 
+                    _id: { $in: documentIds },
+                    extractedText: { $exists: true, $ne: '' }
+                }).select('originalName extractedText');
+                
+                if (docs.length > 0) {
+                    console.log(`✅ MongoDB Fallback: Found ${docs.length} documents with extracted text`);
+                    return {
+                        type: 'user-docs',
+                        data: docs.map(doc => ({
+                            documentId: doc._id.toString(),
+                            documentName: doc.originalName,
+                            text: doc.extractedText.substring(0, 15000),
+                            chunkIndex: 0,
+                            similarity: 1.0,
+                            source: 'mongodb-fallback'
+                        }))
+                    };
+                }
+                
+                // Second try: Live extraction from S3 for documents without extractedText
+                console.log('⚠️ No extractedText found. Attempting S3 live extraction...');
+                const docsWithS3 = await Document.find({ 
+                    _id: { $in: documentIds },
+                    s3Key: { $exists: true, $ne: '' }
+                }).select('originalName s3Key mimeType');
+                
+                if (docsWithS3.length > 0) {
+                    const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+                    const { extractText } = require('../utils/documentProcessor');
+                    
+                    const s3Client = new S3Client({
+                        region: process.env.AWS_REGION,
+                        credentials: {
+                            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+                        }
+                    });
+                    
+                    const extractedDocs = [];
+                    
+                    for (const doc of docsWithS3) {
+                        try {
+                            console.log(`📥 Fetching from S3: ${doc.s3Key}`);
+                            const response = await s3Client.send(new GetObjectCommand({
+                                Bucket: process.env.AWS_BUCKET_NAME,
+                                Key: doc.s3Key
+                            }));
+                            
+                            const chunks = [];
+                            for await (const chunk of response.Body) {
+                                chunks.push(chunk);
+                            }
+                            const buffer = Buffer.concat(chunks);
+                            
+                            // Determine mimeType
+                            const mimeType = doc.mimeType || 
+                                (doc.s3Key.endsWith('.pdf') ? 'application/pdf' : 
+                                 doc.s3Key.endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 
+                                 'application/pdf');
+                            
+                            const text = await extractText(buffer, mimeType);
+                            
+                            if (text && text.trim().length > 0) {
+                                console.log(`✅ Live extracted ${text.length} chars from ${doc.originalName}`);
+                                
+                                // Save for future use
+                                await Document.findByIdAndUpdate(doc._id, { extractedText: text });
+                                
+                                extractedDocs.push({
+                                    documentId: doc._id.toString(),
+                                    documentName: doc.originalName,
+                                    text: text.substring(0, 15000),
+                                    chunkIndex: 0,
+                                    similarity: 1.0,
+                                    source: 's3-live-extraction'
+                                });
+                            }
+                        } catch (s3Err) {
+                            console.error(`❌ S3 extraction failed for ${doc.originalName}:`, s3Err.message);
+                        }
+                    }
+                    
+                    if (extractedDocs.length > 0) {
+                        return { type: 'user-docs', data: extractedDocs };
+                    }
+                }
+                
+            } catch (err) {
+                console.error('❌ MongoDB/S3 fallback error:', err);
+            }
+        }
+        
         if (results.length > 0) {
             console.log(`First chunk preview: ${results[0].text?.substring(0, 100)}...`);
         }

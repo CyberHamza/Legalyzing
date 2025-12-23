@@ -80,6 +80,9 @@ router.post('/knowledge-base', adminAuth, upload.single('document'), async (req,
         const fileExtension = req.file.originalname.split('.').pop();
         const uniqueFilename = `admin/knowledge-base/${Date.now()}-${crypto.randomBytes(8).toString('hex')}.${fileExtension}`;
         
+        // Sanitize original filename for S3 metadata (remove non-ASCII characters)
+        const sanitizedOriginalName = req.file.originalname.replace(/[^\x00-\x7F]/g, "'");
+        
         console.log(`☁️ Uploading to S3: ${uniqueFilename}`);
         try {
             await s3Client.send(new PutObjectCommand({
@@ -87,7 +90,7 @@ router.post('/knowledge-base', adminAuth, upload.single('document'), async (req,
                 Key: uniqueFilename,
                 Body: req.file.buffer,
                 ContentType: req.file.mimetype,
-                Metadata: { originalName: req.file.originalname, type: 'knowledge-base' }
+                Metadata: { originalName: sanitizedOriginalName, type: 'knowledge-base' }
             }));
             console.log('✅ S3 Upload Success');
         } catch (s3Err) {

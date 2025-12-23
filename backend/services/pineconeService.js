@@ -45,6 +45,13 @@ async function upsertVectors(documentId, documentName, userId, chunks, namespace
     try {
         const index = getIndex();
         
+        console.log('--- PINECONE UPSERT DEBUG ---');
+        console.log(`DocumentId: ${documentId}`);
+        console.log(`UserId being stored: ${userId.toString()}`);
+        console.log(`Namespace: ${namespace}`);
+        console.log(`Chunk count: ${chunks.length}`);
+        console.log('-----------------------------');
+        
         // Prepare vectors for upsert
         const vectors = chunks.map((chunk, index) => ({
             id: `${documentId}_chunk_${chunk.chunkIndex}`,
