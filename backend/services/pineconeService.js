@@ -39,8 +39,9 @@ function getIndex() {
  * @param {string} documentName - Original document name
  * @param {string} userId - User ID for filtering
  * @param {Array} chunks - Array of chunks with text and embedding
+ * @param {string} namespace - Optional namespace (default: 'user-uploads')
  */
-async function upsertVectors(documentId, documentName, userId, chunks) {
+async function upsertVectors(documentId, documentName, userId, chunks, namespace = 'user-uploads') {
     try {
         const index = getIndex();
         
@@ -58,14 +59,14 @@ async function upsertVectors(documentId, documentName, userId, chunks) {
             }
         }));
 
-        // Upsert in batches of 100 (Pinecone recommendation)
+        // Upsert in batches
         const batchSize = 100;
         for (let i = 0; i < vectors.length; i += batchSize) {
             const batch = vectors.slice(i, i + batchSize);
-            await index.upsert(batch);
+            await index.namespace(namespace).upsert(batch);
         }
 
-        console.log(`✅ Upserted ${vectors.length} vectors for document ${documentId}`);
+        console.log(`✅ Upserted ${vectors.length} vectors for document ${documentId} to namespace: ${namespace}`);
         return { success: true, vectorCount: vectors.length };
         
     } catch (error) {
@@ -80,29 +81,32 @@ async function upsertVectors(documentId, documentName, userId, chunks) {
  * @param {number} topK - Number of results to return
  * @param {string} userId - User ID for filtering
  * @param {Array} documentIds - Optional array of document IDs to filter by
+ * @param {string} chatId - Optional chat ID
+ * @param {string} namespace - Optional namespace (default: 'user-uploads')
  */
-async function queryVectors(queryEmbedding, topK = 5, userId, documentIds = null, chatId = null) {
+async function queryVectors(queryEmbedding, topK = 5, userId, documentIds = null, chatId = null, namespace = 'user-uploads') {
     try {
         const index = getIndex();
         
-        // Build filter
+        // Build filter - CRITICAL for RAG accuracy
         const filter = { userId: userId.toString() };
         
-        // Add Chat ID filter (scoped RAG)
-        // CRITICAL FIX: If documentIds are provided, we rely on them explicitly and skip chatId filter
-        // to avoid mismatch issues (e.g. doc uploaded as 'unsorted' but queried in new chat).
-        // We only use chatId filter if NO documentIds are provided (pure context search).
+        console.log('--- PINECONE QUERY DEBUG ---');
+        console.log(`Namespace: ${namespace}`);
+        console.log(`UserId Filter: ${filter.userId}`);
         
         if (documentIds && documentIds.length > 0) {
             filter.documentId = { $in: documentIds.map(id => id.toString()) };
-            console.log('🔍 Querying Pinecone by Document IDs:', documentIds.length);
+            console.log(`Document IDs Filter: ${JSON.stringify(filter.documentId.$in)}`);
         } else if (chatId) {
             filter.chatId = chatId.toString();
-            console.log('🔍 Querying Pinecone by Chat ID:', chatId);
+            console.log(`Chat ID Filter: ${filter.chatId}`);
         }
+        console.log(`Full Filter: ${JSON.stringify(filter)}`);
+        console.log('----------------------------');
 
         // Query Pinecone
-        const queryResponse = await index.query({
+        const queryResponse = await index.namespace(namespace).query({
             vector: queryEmbedding,
             topK: topK,
             includeMetadata: true,
@@ -130,17 +134,18 @@ async function queryVectors(queryEmbedding, topK = 5, userId, documentIds = null
 /**
  * Delete all vectors for a document
  * @param {string} documentId - MongoDB document ID
+ * @param {string} namespace - Optional namespace (default: 'user-uploads')
  */
-async function deleteVectors(documentId) {
+async function deleteVectors(documentId, namespace = 'user-uploads') {
     try {
         const index = getIndex();
         
         // Delete by filter (all chunks for this document)
-        await index.deleteMany({
+        await index.namespace(namespace).deleteMany({
             documentId: documentId.toString()
         });
 
-        console.log(`🗑️  Deleted all vectors for document ${documentId}`);
+        console.log(`🗑️  Deleted all vectors for document ${documentId} from namespace: ${namespace}`);
         return { success: true };
         
     } catch (error) {
@@ -227,6 +232,46 @@ async function queryConstitution(queryEmbedding, topK = 10) {
     } catch (error) {
         console.error('❌ Pinecone Constitution query error:', error);
         throw new Error(`Failed to query Constitution from Pinecone: ${error.message}`);
+    }
+}
+
+/**
+ * Query Authoritative Laws namespace for legal provisions
+ * @param {Array} queryEmbedding - Query vector embedding
+ * @param {number} topK - Number of results to return
+ */
+async function queryAuthoritativeLaws(queryEmbedding, topK = 15) {
+    try {
+        const index = getIndex();
+        const namespace = 'authoritative-laws';
+        
+        // Query authoritative-laws namespace
+        const queryResponse = await index.namespace(namespace).query({
+            vector: queryEmbedding,
+            topK: topK,
+            includeMetadata: true
+        });
+
+        // Format results with legal metadata
+        const results = queryResponse.matches.map(match => ({
+            source: match.metadata.source,
+            shortName: match.metadata.shortName,
+            sectionType: match.metadata.sectionType,
+            sectionNumber: match.metadata.sectionNumber,
+            fullCitation: match.metadata.fullCitation,
+            text: match.metadata.text,
+            isAuthoritative: match.metadata.isAuthoritative,
+            lawType: match.metadata.lawType,
+            similarity: match.score,
+            id: match.id
+        }));
+
+        console.log(`⚖️  Found ${results.length} relevant legal provisions from authoritative-laws`);
+        return results;
+        
+    } catch (error) {
+        console.error('❌ Pinecone authoritative laws query error:', error);
+        throw new Error(`Failed to query authoritative laws: ${error.message}`);
     }
 }
 
@@ -323,9 +368,12 @@ async function queryVectorsWithFilter(queryEmbedding, topK = 10, filter = {}, na
         const queryOptions = {
             vector: queryEmbedding,
             topK: topK,
-            includeMetadata: true,
-            filter: filter
+            includeMetadata: true
         };
+
+        if (filter && Object.keys(filter).length > 0) {
+            queryOptions.filter = filter;
+        }
 
         let queryResponse;
         if (namespace) {
@@ -356,5 +404,6 @@ module.exports = {
     upsertConstitution,
     queryConstitutionWithProvenance,
     upsertRawVectors,
-    queryVectorsWithFilter
+    queryVectorsWithFilter,
+    queryAuthoritativeLaws
 };

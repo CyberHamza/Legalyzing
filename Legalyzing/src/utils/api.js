@@ -39,11 +39,12 @@ api.interceptors.response.use(
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 
-                // Only redirect if not already on auth pages
-                if (!window.location.pathname.includes('/signin') && 
-                    !window.location.pathname.includes('/signup')) {
-                    window.location.href = '/signin';
-                }
+                // STOPPING AUTO-REDIRECT TO DEBUG LOGIN LOOP
+                // if (!window.location.pathname.includes('/signin') && 
+                //     !window.location.pathname.includes('/signup')) {
+                //     window.location.href = '/signin';
+                // }
+                console.warn('Unauthorized (401) received. Session cleared.');
             }
 
             // Return formatted error

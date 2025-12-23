@@ -46,9 +46,11 @@ async function getPakistanSystemPrompt(options = {}) {
         if (hasDocumentContext) {
             prompt += `
 DOCUMENT ANALYSIS MODE:
-1. ALWAYS reference the document context.
-2. Quote specific sections.
-3. If info is missing, state it clearly.`;
+1. You have FULL ACCESS to the user's provided document excerpts.
+2. YOU MUST summarize, analyze, and explain this content when asked.
+3. Quote specific sections to support your answers.
+4. Do not refuse to read or summarize the document.
+5. If info is missing, state it clearly.`;
         } else if (hasPendingDocs) {
             prompt += `
 STATUS: Document processing in progress. Ask user to wait briefly.`;

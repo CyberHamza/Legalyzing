@@ -1,23 +1,28 @@
 const openai = require('../config/openai');
 const { generateEmbedding } = require('../utils/documentProcessor');
-const { queryConstitution } = require('./pineconeService');
+const { queryAuthoritativeLaws } = require('./pineconeService');
 
 /**
  * Query Constitution for relevant articles based on legal text
  * @param {string} queryText - Legal text to query against Constitution
  * @param {number} topK - Number of constitutional articles to retrieve
  */
-async function findRelevantConstitutionalArticles(queryText, topK = 10) {
+/**
+ * Query Authoritative Laws for relevant provisions base on legal text
+ * @param {string} queryText - Legal text to query against authoritative laws
+ * @param {number} topK - Number of provisions to retrieve
+ */
+async function findRelevantLegalProvisions(queryText, topK = 15) {
     try {
         // Generate embedding for query
         const queryEmbedding = await generateEmbedding(queryText);
         
-        // Query Constitution in Pinecone
-        const articles = await queryConstitution(queryEmbedding, topK);
+        // Query Authoritative Laws in Pinecone
+        const provisions = await queryAuthoritativeLaws(queryEmbedding, topK);
         
-        return articles;
+        return provisions;
     } catch (error) {
-        console.error('Error finding constitutional articles:', error);
+        console.error('Error finding legal provisions:', error);
         throw error;
     }
 }
@@ -29,48 +34,48 @@ async function findRelevantConstitutionalArticles(queryText, topK = 10) {
  */
 async function checkConstitutionalCompliance(documentText, documentName) {
     try {
-        console.log(`🏛️  Starting ENHANCED constitutional compliance check for: ${documentName}`);
+        console.log(`⚖️  Starting ENHANCED Multi-Law compliance check for: ${documentName}`);
         
-        // Step 1: Find relevant constitutional articles for the entire document
-        console.log('📖 Finding relevant constitutional provisions...');
-        const relevantArticles = await findRelevantConstitutionalArticles(
-            documentText.substring(0, 8000), // Reduced from 12000 to fit rate limits
-            10 // Reduced from 20 to fit rate limits
+        // Step 1: Find relevant legal provisions for the entire document
+        console.log('📖 Finding relevant legal provisions (Constitution, PPC, CrPC, etc.)...');
+        const relevantProvisions = await findRelevantLegalProvisions(
+            documentText.substring(0, 8000), 
+            15
         );
         
-        console.log(`✅ Found ${relevantArticles.length} relevant constitutional articles`);
+        console.log(`✅ Found ${relevantProvisions.length} relevant legal provisions`);
         
-        // Step 2: Prepare comprehensive constitutional context (REDUCED for rate limits)
-        const constitutionalContext = relevantArticles.map((article, index) => 
-            `[Article ${article.articleNumber}] ${article.heading}\n` +
-            `Part ${article.part}: ${article.partName || 'N/A'}\n` +
-            `Content: ${article.text.substring(0, 1000)}${article.text.length > 1000 ? '...' : ''}\n` // Reduced from 1500
+        // Step 2: Prepare comprehensive legal context
+        const legalContext = relevantProvisions.map((prov, index) => 
+            `[${prov.fullCitation}] (Source: ${prov.source})\n` +
+            `Content: ${prov.text.substring(0, 1000)}${prov.text.length > 1000 ? '...' : ''}\n` 
         ).join('\n---\n');
         
         // Step 3: Generate ultra-detailed compliance analysis using refined AI prompt
-        console.log('🧠 Generating comprehensive compliance analysis...');
+        console.log('🧠 Generating comprehensive legal compliance analysis...');
         
-        const enhancedPrompt = `You are Pakistan's leading constitutional lawyer and Supreme Court constitutional law expert. Conduct an EXTREMELY DETAILED, FACTUAL, and CRITICAL constitutional compliance analysis.
+        const enhancedPrompt = `You are Pakistan's most respected Legal Expert and Constitutional Jurist. Your task is to perform a rigorous compliance check of the provided document against Pakistan's authoritative laws (Constitution, PPC, CrPC, CPC, etc.).
 
 DOCUMENT TO ANALYZE:
 Title: ${documentName}
 Full Text:
-${documentText.substring(0, 8000)} // Reduced from 20000 to fit rate limits
+${documentText.substring(0, 8000)}
 
-RELEVANT CONSTITUTIONAL PROVISIONS:
-${constitutionalContext}
+RELEVANT LEGAL PROVISIONS FROM KNOWLEDGE BASE:
+${legalContext}
+
+═══════════════════════════════════════════════════════════════════
+
+CRITICAL INSTRUCTIONS FOR ACCURACY AND AUTHENTICITY:
+
+1. USE SPECIFIC CITATIONS: Never provide generic references. Use the exact "fullCitation" from the context (e.g., "Section 302 PPC", "Article 19 Constitution").
+2. NO HALLUCINATIONS: If no specific section fits, mention the most relevant legal principle, but never invent article/section numbers.
+3. DETECT CONFLICTS: Identify if the document violates statutory law (PPC/CrPC) OR constitutional fundamental rights.
+4. QUOTE EXACT TEXT: From both the Document and the Law.
+5. PROFESSIONAL TONE: Sound like a Supreme Court Justice. Be precise, critical, and authoritative.
 
 ═══════════════════════════════════════════════════════════════════
 
-CRITICAL INSTRUCTIONS - READ CAREFULLY:
-
-1. QUOTE EXACT SENTENCES from the uploaded document
-2. Map EACH quoted sentence to SPECIFIC constitutional articles/clauses
-3. Provide FACTUAL EVIDENCE of compliance or non-compliance
-4. Be EXTREMELY EXPLICIT about constitutional references
-5. Use CRITICAL LEGAL ANALYSIS - be thorough and precise
-
-═══════════════════════════════════════════════════════════════════
 
 REQUIRED JSON OUTPUT:
 
@@ -85,10 +90,10 @@ REQUIRED JSON OUTPUT:
       "exactQuoteFromDocument": "<EXACT sentence/paragraph from uploaded document that is compliant>",
       "constitutionalSupport": [
         {
-          "articleNumber": "<e.g., '19'>",
-          "articleHeading": "<e.g., 'Freedom of speech, etc.'>",
-          "specificClause": "<e.g., 'Article 19(1)' or 'Article 19 clause (a)'>",
-          "exactConstitutionalText": "<EXACT TEXT from Constitution of Pakistan that supports this>",
+          "articleNumber": "<e.g., 'Section 302'>",
+          "articleHeading": "<e.g., 'Punishment of qatl-i-amd'>",
+          "specificClause": "<e.g., 'Section 302(a) PPC'>",
+          "exactConstitutionalText": "<EXACT TEXT from the Law that supports this>",
           "alignment": "EXCELLENT" | "GOOD" | "ADEQUATE",
           "factualEvidence": "<EXPLAIN EXACTLY how the quoted document text aligns with the constitutional provision. BE SPECIFIC.>",
           "legalReasoning": "<Professional legal analysis of why this is compliant>"
@@ -233,7 +238,7 @@ CRITICAL REQUIREMENTS:
             success: true,
             documentName: documentName,
             timestamp: new Date(),
-            relevantArticles: relevantArticles,
+            relevantArticles: relevantProvisions,
             analysis: analysis
         };
         
@@ -636,6 +641,6 @@ function generateReportId() {
 
 module.exports = {
     checkConstitutionalCompliance,
-    findRelevantConstitutionalArticles,
+    findRelevantLegalProvisions,
     formatComplianceReport
 };

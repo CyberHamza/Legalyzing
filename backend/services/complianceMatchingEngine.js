@@ -9,12 +9,12 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
  */
 
 /**
- * Match a sentence from uploaded document to constitutional provisions
+ * Match a sentence from uploaded document to authoritative legal provisions
  * @param {Object} sentence - Sentence object with text and metadata
  * @param {number} topK - Number of top matches to retrieve
- * @returns {Array} - Array of matches with constitutional provisions
+ * @returns {Array} - Array of matches with legal provisions
  */
-async function matchSentenceToConstitution(sentence, topK = 5) {
+async function matchSentenceToAuthoritativeLaws(sentence, topK = 5) {
     try {
         const { generateEmbedding } = require('../utils/documentProcessor');
         const { queryVectorsWithFilter } = require('./pineconeService');
@@ -30,10 +30,13 @@ async function matchSentenceToConstitution(sentence, topK = 5) {
         );
         
         return results.map(match => ({
-            constitutionText: match.metadata.text,
-            article: match.metadata.sectionNumber || match.metadata.articleNumber || "N/A",
-            articleHeading: match.metadata.shortName,
+            legalText: match.metadata.text,
+            article: match.metadata.sectionNumber || "N/A",
+            sectionType: match.metadata.sectionType || "Section",
+            fullCitation: match.metadata.fullCitation || `${match.metadata.shortName} Section ${match.metadata.sectionNumber}`,
+            shortName: match.metadata.shortName,
             source: match.metadata.source,
+            lawType: match.metadata.lawType,
             similarity_score: match.score,
             pineconeId: match.id
         }));
@@ -47,35 +50,32 @@ async function matchSentenceToConstitution(sentence, topK = 5) {
  * Determine compliance decision: YES, NO, or PARTIAL
  * Uses GPT-4 for nuanced legal analysis
  */
-async function determineCompliance(uploadedText, constitutionMatch, context = {}) {
+async function determineCompliance(uploadedText, lawMatch, context = {}) {
     try {
-        const prompt = `You are Pakistan's leading constitutional law expert. Analyze whether the uploaded document text complies with the Constitution.
-
+        const prompt = `You are Pakistan's leading legal expert. Analyze whether the uploaded document text complies with the Authoritative Law.
+        
 UPLOADED DOCUMENT TEXT:
 "${uploadedText}"
 
-RELEVANT CONSTITUTIONAL PROVISION:
-Article ${constitutionMatch.article}: ${constitutionMatch.articleHeading}
-"${constitutionMatch.constitutionText}"
+RELEVANT LEGAL PROVISION:
+${lawMatch.fullCitation}: ${lawMatch.source}
+"${lawMatch.legalText}"
 
 INSTRUCTIONS:
 1. Determine if the uploaded text is:
-   - YES: Fully compliant (aligns with or upholds the constitutional provision)
-   - NO: Non-compliant (contradicts or violates the constitutional provision)
+   - YES: Fully compliant (aligns with or upholds the legal provision)
+   - NO: Non-compliant (contradicts or violates the legal provision)
    - PARTIAL: Partially compliant (some alignment but with gaps, ambiguities, or conditions)
 
-2. Provide a 1-2 sentence rationale explaining your decision.
+2. Provide a 1-2 sentence rationale explaining your decision. Cite the specific law (e.g., PPC, Constitution, CrPC).
 
-3. Assign a confidence score (0-100) based on:
-   - Clarity of the constitutional provision
-   - Clarity of the uploaded text
-   - Strength of semantic alignment or contradiction
+3. Assign a confidence score (0-100).
 
 Return ONLY valid JSON:
 {
   "decision": "YES|NO|PARTIAL",
   "confidence": 0-100,
-  "rationale": "brief explanation"
+  "rationale": "brief explanation citing ${lawMatch.shortName}"
 }`;
 
         const response = await openai.chat.completions.create({
@@ -83,7 +83,7 @@ Return ONLY valid JSON:
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a constitutional law expert providing precise, factual compliance analysis. Return only valid JSON.'
+                    content: 'You are a legal expert providing precise, factual compliance analysis. Return only valid JSON.'
                 },
                 {
                     role: 'user',
@@ -112,7 +112,7 @@ Return ONLY valid JSON:
         console.error('Error determining compliance:', error);
         
         // Fallback to similarity-based decision
-        return fallbackComplianceDecision(constitutionMatch.similarityScore);
+        return fallbackComplianceDecision(lawMatch.similarity_score);
     }
 }
 
@@ -167,16 +167,16 @@ function calculateConfidenceScore(similarityScore, additionalFactors = {}) {
 /**
  * Generate detailed rationale for a compliance decision
  */
-async function generateRationale(uploadedText, constitutionMatch, decision, confidence) {
+async function generateRationale(uploadedText, lawMatch, decision, confidence) {
     try {
-        const prompt = `Explain why this document text is ${decision.toLowerCase()} with Article ${constitutionMatch.article} (${constitutionMatch.articleHeading}).
-
+        const prompt = `Explain why this document text is ${decision.toLowerCase()} with ${lawMatch.fullCitation} (${lawMatch.source}).
+        
 Document text: "${uploadedText}"
 
-Constitution: "${constitutionMatch.constitutionText}"
+Legal Provision: "${lawMatch.legalText}"
 
 Provide a concise 2-3 sentence explanation that:
-1. Identifies the key legal principle in the constitution
+1. Identifies the key legal principle in the referenced law
 2. Shows how the document text relates to it
 3. Justifies the ${decision} decision
 
@@ -187,7 +187,7 @@ Be specific and factual.`;
             messages: [
                 {
                     role: 'system',
-                    content: 'You are a constitutional lawyer providing clear, factual explanations.'
+                    content: 'You are a legal expert providing clear, factual explanations.'
                 },
                 {
                     role: 'user',
@@ -201,7 +201,7 @@ Be specific and factual.`;
         return response.choices[0].message.content.trim();
     } catch (error) {
         console.error('Error generating rationale:', error);
-        return `The document text shows ${decision === 'YES' ? 'alignment' : decision === 'NO' ? 'contradiction' : 'partial alignment'} with Article ${constitutionMatch.article}.`;
+        return `The document text shows ${decision === 'YES' ? 'alignment' : decision === 'NO' ? 'contradiction' : 'partial alignment'} with ${lawMatch.fullCitation}.`;
     }
 }
 
@@ -211,15 +211,15 @@ Be specific and factual.`;
  */
 async function createComplianceMapping(sentence, uploadedDocMeta = {}) {
     try {
-        // Step 1: Find matching constitutional provisions
-        const constitutionMatches = await matchSentenceToConstitution(sentence, 3);
+        // Step 1: Find matching legal provisions
+        const lawMatches = await matchSentenceToAuthoritativeLaws(sentence, 3);
         
-        if (constitutionMatches.length === 0) {
-            return null; // No relevant constitutional provision found
+        if (lawMatches.length === 0) {
+            return null; // No relevant legal provision found
         }
         
         // Use top match
-        const bestMatch = constitutionMatches[0];
+        const bestMatch = lawMatches[0];
         
         // Step 2: Determine compliance
         const complianceResult = await determineCompliance(
@@ -247,22 +247,16 @@ async function createComplianceMapping(sentence, uploadedDocMeta = {}) {
                 line: sentence.line
             },
             constitution_match: {
-                text: bestMatch.constitutionText,
-                article: `Article ${bestMatch.article}`,
-                articleHeading: bestMatch.articleHeading,
-                part: bestMatch.part ? `Part ${bestMatch.part}` : null,
-                partName: bestMatch.partName,
-                file: 'Constitution of Pakistan.txt',
-                location: {
-                    startChar: bestMatch.startChar,
-                    endChar: bestMatch.endChar,
-                    lineStart: bestMatch.lineStart,
-                    lineEnd: bestMatch.lineEnd
-                }
+                text: bestMatch.legalText,
+                article: bestMatch.fullCitation,
+                articleHeading: bestMatch.shortName,
+                source: bestMatch.source,
+                lawType: bestMatch.lawType,
+                file: bestMatch.source
             },
             decision: complianceResult.decision,
             confidence: complianceResult.confidence,
-            similarity_score: bestMatch.similarityScore,
+            similarity_score: bestMatch.similarity_score,
             rationale: rationale,
             provenance: {
                 pinecone_chunk_id: bestMatch.pineconeId,
@@ -270,9 +264,9 @@ async function createComplianceMapping(sentence, uploadedDocMeta = {}) {
                 query_used: sentence.text.substring(0, 100) + '...',
                 timestamp: new Date().toISOString()
             },
-            alternative_matches: constitutionMatches.slice(1).map(m => ({
-                article: `Article ${m.article}`,
-                similarity: m.similarityScore
+            alternative_matches: lawMatches.slice(1).map(m => ({
+                article: m.fullCitation,
+                similarity: m.similarity_score
             }))
         };
     } catch (error) {
@@ -366,36 +360,36 @@ async function processThematicCompliance(documentText, documentMeta = {}) {
 
     // 2. Process all sections in parallel (No sequential delays!)
     const mappingPromises = sections.map(async (section, idx) => {
-        // Find best constitutional match for this chunk
-        const matches = await matchSentenceToConstitution({ text: section.content }, 3);
+        // Find best legal match for this chunk
+        const matches = await matchSentenceToAuthoritativeLaws({ text: section.content }, 3);
         if (matches.length === 0) return null;
 
         const bestMatch = matches[0];
         
         // Detailed compliance analysis for this chunk
-        const analysisPrompt = `Critically analyze this document section for compliance with the Constitution of Pakistan.
+        const analysisPrompt = `Critically analyze this document section for compliance with the Authoritative Laws of Pakistan.
         
         SECTION: "${section.title}"
         TEXT: "${section.content}"
         
-        CONSTITUTIONAL PROVISION:
-        Article ${bestMatch.article}: ${bestMatch.articleHeading}
-        "${bestMatch.constitutionText}"
+        LEGAL PROVISION:
+        ${bestMatch.fullCitation}: ${bestMatch.source}
+        "${bestMatch.legalText}"
         
         TASK:
         1. Decide: YES (Compliant), NO (Violation), PARTIAL (Ambiguous).
         2. Identify specific "Loopholes" or "Conflicts".
-        3. Provide a "Proposed Fix" (Exact redline text).
+        3. Provide a "Proposed Fix" (Exact citation-based correction).
         4. Generate an "Explainable Reasoning Chain" showing exactly how you reached this conclusion step-by-step.
         
         Return JSON object:
         {
           "decision": "YES|NO|PARTIAL",
           "confidence": 0-100,
-          "rationale": "Overall summary of findings",
+          "rationale": "Overall summary cite ${bestMatch.shortName}",
           "reasoningChain": [
             "Step 1: Extracted core directive from document...",
-            "Step 2: Compared against Constitutional Article...",
+            "Step 2: Compared against ${bestMatch.fullCitation}...",
             "Step 3: Identified divergence/alignment regarding...",
             "Step 4: Concluded status as..."
           ],
@@ -422,11 +416,13 @@ async function processThematicCompliance(documentText, documentMeta = {}) {
             loophole: result.loophole,
             proposedFix: result.proposedFix,
             constitution_match: {
-                article: bestMatch.article.startsWith('Article') ? bestMatch.article : `Article ${bestMatch.article}`,
-                articleHeading: bestMatch.articleHeading,
-                text: bestMatch.constitutionText
+                article: bestMatch.fullCitation,
+                articleHeading: bestMatch.shortName,
+                text: bestMatch.legalText,
+                source: bestMatch.source,
+                lawType: bestMatch.lawType
             },
-            similarity_score: bestMatch.similarity_score || bestMatch.similarityScore || 0
+            similarity_score: bestMatch.similarity_score || 0
         };
     });
 
@@ -439,7 +435,7 @@ async function processThematicCompliance(documentText, documentMeta = {}) {
 }
 
 module.exports = {
-    matchSentenceToConstitution,
+    matchSentenceToAuthoritativeLaws,
     determineCompliance,
     calculateConfidenceScore,
     generateRationale,

@@ -48,7 +48,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Rate limiting to prevent brute force attacks
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: 5000, // Increased from 100 to 5000 to prevent Admin 429 lockouts
     message: {
         success: false,
         message: 'Too many requests from this IP, please try again later.'
@@ -61,7 +61,7 @@ app.use(limiter);
 // Stricter rate limiting for auth routes
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 auth requests per windowMs
+    max: 500, // Increased from 100 to 500
     message: {
         success: false,
         message: 'Too many authentication attempts, please try again later.'

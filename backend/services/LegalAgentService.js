@@ -37,7 +37,9 @@ class LegalAgentService {
         }
         
         // Tool 3: User Documents (Case Context)
-        if (routing.tools.includes('user-documents') && (documentIds.length > 0 || conversationId)) {
+        // FORCE CHECK if documentIds are present (Explicit user intent or auto-resolved)
+        if (documentIds.length > 0 || (conversationId && routing.tools.includes('user-documents'))) {
+            console.log(`🔍 Force-checking User Documents: ${documentIds.length} docs found`);
             retrievalTasks.push(this.retrieveUserContext(userQuery, userId, documentIds, conversationId));
         }
 
@@ -105,14 +107,27 @@ RESPONSE FORMAT: JSON
      * Retrieve from User's uploaded documents
      */
     static async retrieveUserContext(query, userId, documentIds, chatId) {
+        console.log('--- RETRIEVE USER CONTEXT DEBUG ---');
+        console.log(`UserId: ${userId}`);
+        console.log(`DocumentIds: ${JSON.stringify(documentIds)}`);
+        console.log(`ChatId: ${chatId}`);
+        console.log('-----------------------------------');
+        
         const embedding = await generateEmbedding(query);
         const results = await pineconeService.queryVectors(
             embedding,
             5,
             userId,
             documentIds,
-            chatId
+            chatId,
+            'user-uploads' // Explicitly query user namespace
         );
+        
+        console.log(`📄 Retrieved ${results.length} chunks from user documents`);
+        if (results.length > 0) {
+            console.log(`First chunk preview: ${results[0].text?.substring(0, 100)}...`);
+        }
+        
         return { type: 'user-docs', data: results };
     }
 
@@ -155,12 +170,22 @@ RESPONSE FORMAT: JSON
             hasDocumentContext: routing.tools.includes('user-documents')
         });
 
+        // DEBUG: Inject Context directly into User Message for stronger attention
+        let finalUserMessage = query;
+        if (context && context.includes('USER CASE CONTEXT')) {
+             console.log('📝 Injecting Document Context into User Message Block for Reliability...');
+             finalUserMessage = `${context}\n\nUSER QUESTION: ${query}`;
+        }
+
         const messages = [
             { role: "system", content: systemPrompt },
-            { role: "system", content: context },
             ...history.slice(-5),
-            { role: "user", content: query }
+            { role: "user", content: finalUserMessage }
         ];
+
+        console.log('--- DEBUG: GENERATE RESPONSE MESSAGES ---');
+        console.log(JSON.stringify(messages, null, 2));
+        console.log('-----------------------------------------');
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",

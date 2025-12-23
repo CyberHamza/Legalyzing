@@ -27,6 +27,22 @@ const processUpload = async (documentId, buffer, mimeType, userId, chatId = null
 
         console.log(`🔹 Classified as: ${docType}`);
 
+        // === LEGAL DOCUMENT CHECK ===
+        const nonLegalTypes = ['Unknown', 'Other', 'Non-Legal'];
+        const isLegalDocument = !nonLegalTypes.includes(docType);
+        
+        if (!isLegalDocument) {
+            console.log('⚠️ Document classified as Non-Legal. Skipping Pinecone indexing.');
+            await Document.findByIdAndUpdate(documentId, {
+                processed: true,
+                docType: 'Non-Legal',
+                isLegal: false,
+                processingError: 'This document does not appear to be a legal document.'
+            });
+            return null; // Early exit
+        }
+        // ==============================
+
         // 3. Timeline Generation
         const timelineEvents = await intelligence.generateTimeline(text, deepMetadata.dates?.documentDate);
         
@@ -105,23 +121,33 @@ const processUpload = async (documentId, buffer, mimeType, userId, chatId = null
         }
 
         // 7. Vectorization (Pinecone) - Background
-        // Enrich chunks with deep metadata
-        const enrichedChunks = chunks.map(chunk => ({
-            ...chunk,
-            metadata: {
-                chatId: chatId, // Critical for Chat-Scoped RAG
-                caseId: caseId ? caseId.toString() : null,
-                docType: docType,
-                judge: deepMetadata.court?.judge,
-                laws: deepMetadata.statutes
-            }
-        }));
+        // Enrich chunks with deep metadata (filter out null values to prevent Pinecone error)
+        const enrichedChunks = chunks.map(chunk => {
+            const metadata = {
+                chatId: chatId || undefined,
+                caseId: caseId ? caseId.toString() : undefined,
+                docType: docType || undefined,
+                judge: deepMetadata.court?.judge || undefined,
+                laws: deepMetadata.statutes || undefined
+            };
+            // Remove undefined keys (Pinecone doesn't accept null)
+            Object.keys(metadata).forEach(key => {
+                if (metadata[key] === undefined || metadata[key] === null) {
+                    delete metadata[key];
+                }
+            });
+            return {
+                ...chunk,
+                metadata
+            };
+        });
 
         await pineconeService.upsertVectors(
             documentId,
             doc.filename,
             userId,
-            enrichedChunks
+            enrichedChunks,
+            'user-uploads' // Explicitly index to user namespace
         );
         await Document.findByIdAndUpdate(documentId, { pineconeIndexed: true });
         

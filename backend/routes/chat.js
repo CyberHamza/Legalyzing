@@ -19,7 +19,8 @@ const LegalAgentService = require('../services/LegalAgentService');
 // @access  Private
 router.post('/', protect, async (req, res) => {
     try {
-        const { message, conversationId, documentIds } = req.body;
+        const { message, conversationId } = req.body;
+        let documentIds = req.body.documentIds; // Use let to allow reassignment in fallback logic
 
         if (!message || !message.trim()) {
             return res.status(400).json({
@@ -97,10 +98,41 @@ router.post('/', protect, async (req, res) => {
                     console.log(`✅ Auto-resolved ${documentIds.length} documents from session context.`);
                 } else {
                     console.log('ℹ️ No documents found for this chat session.');
+                    
+                    // FALLBACK: Check for recent orphaned/unsorted uploads (last 15 mins) by this user
+                    // This handles the case where frontend uploaded doc but hasn't linked it to a chat ID yet
+                    console.log('⚠️ Attempting fallback: Looking for recent user uploads...');
+                    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+                    const recentDocs = await Document.find({
+                        user: req.user.id,
+                        createdAt: { $gte: fifteenMinutesAgo },
+                        // Optional: filter for 'unsorted' if you want to be strict, but for now just grab recent
+                    }).sort({ createdAt: -1 }).limit(1).select('_id');
+
+                    if (recentDocs.length > 0) {
+                        documentIds = [recentDocs[0]._id];
+                        console.log(`✅ Fallback: Auto-attached most recent upload: ${recentDocs[0]._id}`);
+                        
+                        // Optionally link it to this conversation now?
+                        // await Document.findByIdAndUpdate(recentDocs[0]._id, { chatId: conversationId });
+                    }
                 }
             } catch (err) {
                 console.error('❌ Error resolving chat documents:', err);
             }
+        } else if (!documentIds || documentIds.length === 0) {
+            // Case: New Conversation (No conversationId yet)
+             console.log('⚠️ New Conversation: Looking for recent user uploads...');
+             const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+             const recentDocs = await Document.find({
+                 user: req.user.id,
+                 createdAt: { $gte: fifteenMinutesAgo }
+             }).sort({ createdAt: -1 }).limit(1).select('_id');
+
+             if (recentDocs.length > 0) {
+                 documentIds = [recentDocs[0]._id];
+                 console.log(`✅ Fallback (New Chat): Auto-attached most recent upload: ${recentDocs[0]._id}`);
+             }
         }
         // -----------------------------------
 
@@ -111,6 +143,7 @@ router.post('/', protect, async (req, res) => {
             documentIds,
             userId: req.user.id,
             history: conversation.messages.slice(-10)
+            // Note: LegalAgentService now internally enforces 'user-uploads' namespace for user documents
         });
 
         const aiResponse = agenticResult.content;
@@ -238,7 +271,8 @@ router.post('/', protect, async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Chat error:', error);
+        console.error('❌ Chat error:', error.message);
+        console.error('Stack Trace:', error.stack);
         res.status(500).json({
             success: false,
             message: 'Error processing chat message',

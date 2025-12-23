@@ -51,6 +51,10 @@ const documentSchema = new mongoose.Schema(
             type: Boolean,
             default: false
         },
+        isLegal: {
+            type: Boolean,
+            default: true
+        },
         processingError: String,
         
         // Intelligence Data

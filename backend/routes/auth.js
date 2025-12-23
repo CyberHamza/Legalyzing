@@ -201,6 +201,15 @@ const SystemSettings = require('../models/SystemSettings');
                 });
             }
 
+            // 1. Strict Account Suspension Check
+            if (!user.isActive) {
+                console.warn(`Blocked login attempt for suspended user: ${email}`);
+                return res.status(403).json({
+                    success: false,
+                    message: 'Your account has been suspended by super admin please contact if you want to activate your account'
+                });
+            }
+
             // Check if user is verified
             if (!user.isVerified) {
                 return res.status(401).json({

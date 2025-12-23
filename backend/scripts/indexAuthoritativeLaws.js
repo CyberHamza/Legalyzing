@@ -11,7 +11,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 const ROOT_DIR = path.join(__dirname, '..', '..');
 
 const AUTHORITATIVE_LAWS = [
-    { filename: 'Constitution of Pakistan.txt', title: 'Constitution of Pakistan, 1973', shortName: 'Constitution' },
+    { filename: 'Constitution of Pakistan.txt', title: 'Constitution of Pakistan, 1973', shortName: 'Constitution', skipTo: 'PREAMBLE' },
     { filename: 'Pakistan Panel Code.pdf', title: 'Pakistan Penal Code, 1860', shortName: 'PPC' },
     { filename: 'THE CODE OF CRIMINAL PROCEDURE, 1898.pdf', title: 'Code of Criminal Procedure, 1898', shortName: 'CrPC' },
     { filename: 'THE CODE OF CIVIL PROCEDURE, 1908.pdf', title: 'Code of Civil Procedure, 1908', shortName: 'CPC' },
@@ -23,7 +23,7 @@ const AUTHORITATIVE_LAWS = [
 const NAMESPACE = 'authoritative-laws';
 
 async function indexLaws() {
-    console.log('🚀 Starting Authoritative Law Indexing...');
+    console.log('🚀 Starting ENHANCED Authoritative Law Indexing...');
     
     for (const law of AUTHORITATIVE_LAWS) {
         const filePath = path.join(ROOT_DIR, law.filename);
@@ -45,34 +45,49 @@ async function indexLaws() {
                 text = await extractText(buffer, mimeType);
             }
 
+            // Optional: Skip to content (e.g. skip TOC)
+            if (law.skipTo) {
+                const startIndex = text.indexOf(law.skipTo);
+                if (startIndex !== -1) {
+                    console.log(`   ✂️ Skipping to ${law.skipTo}...`);
+                    text = text.substring(startIndex);
+                }
+            }
+
             const textChunks = splitTextStructurally(text);
             console.log(`   Extracted ${textChunks.length} chunks.`);
 
             const vectors = [];
             for (let i = 0; i < textChunks.length; i++) {
                 const chunkText = textChunks[i];
-                console.log(`   [${i+1}/${textChunks.length}] Generating embedding...`);
+                if (i % 50 === 0) console.log(`   [${i+1}/${textChunks.length}] Processing chunks...`);
                 
                 try {
                     const embedding = await generateEmbedding(chunkText);
                     
-                    const sectionMatch = chunkText.match(/^(ARTICLE|SECTION|CLAUSE)\s+(\d+)/i);
+                    // Robust Citation Detection
+                    // Matches: Article 1, Section 1, Rule 1, Order 1, Rule 1.
+                    const sectionMatch = chunkText.match(/^(ARTICLE|SECTION|RULE|ORDER|CLAUSE)\s+([\d\w\-]+)/i);
+                    const sectionType = sectionMatch ? sectionMatch[1].toUpperCase() : null;
                     const sectionNumber = sectionMatch ? sectionMatch[2] : null;
 
                     vectors.push({
-                        id: `${law.shortName.replace(/\s+/g, '_')}_${i}`,
+                        id: `${law.shortName.replace(/\s+/g, '_')}_${Date.now()}_${i}`,
                         values: embedding,
                         metadata: {
                             source: law.title,
                             shortName: law.shortName,
                             text: chunkText,
                             chunkIndex: i,
+                            sectionType: sectionType || "GENERAL",
                             sectionNumber: sectionNumber || "N/A",
-                            isAuthoritative: true
+                            fullCitation: sectionNumber ? `${sectionType} ${sectionNumber} (${law.shortName})` : `${law.shortName} (Part ${i})`,
+                            isAuthoritative: true,
+                            lawType: law.shortName === 'Constitution' ? 'CONSTITUTIONAL' : 'STATUTORY'
                         }
                     });
 
-                    if (vectors.length >= 20) {
+                    if (vectors.length >= 50) {
                         await upsertRawVectors(vectors, NAMESPACE);
                         vectors.length = 0;
                     }
@@ -85,14 +100,15 @@ async function indexLaws() {
                 await upsertRawVectors(vectors, NAMESPACE);
             }
 
-            console.log(`✅ Indexed ${law.title} successfully.`);
+            console.log(`✅ Indexed ${law.title} successfully with ${textChunks.length} vectors.`);
 
         } catch (error) {
             console.error(`❌ Error indexing ${law.title}:`, error.message);
         }
     }
 
-    console.log('\n✨ All authoritative laws indexed into Pinecone!');
+    console.log('\n✨ All authoritative laws indexed into Pinecone namespace: authoritative-laws!');
 }
 
 indexLaws().catch(console.error);
+

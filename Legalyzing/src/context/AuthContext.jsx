@@ -47,11 +47,19 @@ export const AuthProvider = ({ children }) => {
                     }
                 } catch (err) {
                     console.error('Session validation failed:', err);
-                    // Invalid token - clear everything
-                    setToken(null);
-                    setUser(null);
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
+                    
+                    // CRITICAL FIX: Only logout if explicit 401/403 (Auth failed)
+                    // Do NOT logout on 500 (Server Error) or 503 (Maintenance)
+                    if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                        console.warn('Authentication invalid, logging out...');
+                        setToken(null);
+                        setUser(null);
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                    } else {
+                        console.warn('Transient error during session check, keeping session alive:', err.message);
+                        // Keep the optimistic user state
+                    }
                 }
             }
             setLoading(false);
